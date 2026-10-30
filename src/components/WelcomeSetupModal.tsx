@@ -49,7 +49,7 @@ export const WelcomeSetupModal: React.FC<WelcomeSetupModalProps> = ({ onComplete
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <div data-interactive="true" className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 pointer-events-auto">
       {/* 480x480 Exact Square Modal */}
       <div 
         className="w-[480px] h-[480px] rounded-3xl bg-black/90 border border-white/10 shadow-2xl flex flex-col justify-between p-7 relative overflow-hidden liquid-glass"

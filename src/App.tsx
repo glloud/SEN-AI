@@ -301,7 +301,8 @@ export default function App() {
     const api = (window as any).electronAPI;
     if (!api || typeof api.setIgnoreMouseEvents !== 'function') return;
 
-    if (isNotchExpanded || isSettingsOpen) {
+    // If welcome modal, notch, settings, or power state is active, keep window fully interactive
+    if (isNotchExpanded || isSettingsOpen || showWelcome || powerMode !== 'normal') {
       api.setIgnoreMouseEvents(false);
       return;
     }
@@ -311,8 +312,22 @@ export default function App() {
 
     let isHoveringInteractive = false;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const el = document.elementFromPoint(e.clientX, e.clientY);
+    const handlePointerActivity = (e: Event) => {
+      let x = 0;
+      let y = 0;
+      const me = e as MouseEvent | PointerEvent | TouchEvent;
+
+      if ('clientX' in me && typeof (me as MouseEvent).clientX === 'number') {
+        x = (me as MouseEvent).clientX;
+        y = (me as MouseEvent).clientY;
+      } else if ('touches' in me && (me as TouchEvent).touches && (me as TouchEvent).touches[0]) {
+        x = (me as TouchEvent).touches[0].clientX;
+        y = (me as TouchEvent).touches[0].clientY;
+      } else {
+        return;
+      }
+
+      const el = document.elementFromPoint(x, y);
       const isInteractive = Boolean(
         el && (
           el.closest('[data-interactive="true"]') ||
@@ -322,7 +337,8 @@ export default function App() {
           el.closest('a') ||
           el.closest('select') ||
           el.closest('[role="button"]') ||
-          el.closest('.pointer-events-auto')
+          el.closest('.pointer-events-auto') ||
+          el.closest('.liquid-glass')
         )
       );
 
@@ -332,11 +348,18 @@ export default function App() {
       }
     };
 
-    window.addEventListener('mousemove', handleMouseMove, { capture: true, passive: true });
+    window.addEventListener('mousemove', handlePointerActivity, { capture: true, passive: true });
+    window.addEventListener('pointermove', handlePointerActivity, { capture: true, passive: true });
+    window.addEventListener('pointerdown', handlePointerActivity, { capture: true, passive: true });
+    window.addEventListener('touchstart', handlePointerActivity, { capture: true, passive: true });
+
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove, { capture: true } as any);
+      window.removeEventListener('mousemove', handlePointerActivity, { capture: true } as any);
+      window.removeEventListener('pointermove', handlePointerActivity, { capture: true } as any);
+      window.removeEventListener('pointerdown', handlePointerActivity, { capture: true } as any);
+      window.removeEventListener('touchstart', handlePointerActivity, { capture: true } as any);
     };
-  }, [isNotchExpanded, isSettingsOpen]);
+  }, [isNotchExpanded, isSettingsOpen, showWelcome, powerMode]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden text-slate-100 font-sans select-none pointer-events-none bg-transparent">

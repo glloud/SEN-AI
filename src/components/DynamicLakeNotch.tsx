@@ -210,6 +210,21 @@ export function DynamicLakeNotch({
           (window as any).electronAPI.setIgnoreMouseEvents(false);
         }
       }}
+      onPointerOver={() => {
+        if ((window as any).electronAPI?.setIgnoreMouseEvents) {
+          (window as any).electronAPI.setIgnoreMouseEvents(false);
+        }
+      }}
+      onPointerDown={() => {
+        if ((window as any).electronAPI?.setIgnoreMouseEvents) {
+          (window as any).electronAPI.setIgnoreMouseEvents(false);
+        }
+      }}
+      onTouchStart={() => {
+        if ((window as any).electronAPI?.setIgnoreMouseEvents) {
+          (window as any).electronAPI.setIgnoreMouseEvents(false);
+        }
+      }}
       onMouseLeave={() => {
         if (!isExpanded && (window as any).electronAPI?.setIgnoreMouseEvents) {
           (window as any).electronAPI.setIgnoreMouseEvents(true, { forward: true });

@@ -322,6 +322,15 @@ If Windows shows "Unspecified error" when launching SEN AI Desktop.lnk:
       onMouseEnter={() => {
         (window as any).electronAPI?.setIgnoreMouseEvents(false);
       }}
+      onPointerOver={() => {
+        (window as any).electronAPI?.setIgnoreMouseEvents(false);
+      }}
+      onPointerDown={() => {
+        (window as any).electronAPI?.setIgnoreMouseEvents(false);
+      }}
+      onTouchStart={() => {
+        (window as any).electronAPI?.setIgnoreMouseEvents(false);
+      }}
       onMouseLeave={() => {
         if (!isOpen) {
           (window as any).electronAPI?.setIgnoreMouseEvents(true, { forward: true });
