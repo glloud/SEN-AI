@@ -56,8 +56,15 @@ const PRESET_THEMES = [
 
 const PRESET_FONTS = [
   { name: 'Alata', label: 'Alata (Default Soft Minimalist)' },
-  { name: 'Gruppo', label: 'Gruppo (Minimalist)' },
+  { name: 'Comfortaa', label: 'Comfortaa (Soft & Calm Bold)' },
+  { name: 'Quicksand', label: 'Quicksand (Warm Soft Bold)' },
+  { name: 'Outfit', label: 'Outfit (Modern Calm Bold)' },
+  { name: 'Plus Jakarta Sans', label: 'Plus Jakarta Sans (Organic Soft)' },
+  { name: 'Nunito', label: 'Nunito (Humanist Calm)' },
+  { name: 'Syne', label: 'Syne (Distinctive Bold)' },
+  { name: 'Lexend', label: 'Lexend (Clean & Calm)' },
   { name: 'Varela Round', label: 'Varela Round (Soft One UI)' },
+  { name: 'Gruppo', label: 'Gruppo (Minimalist)' },
   { name: 'Kanit', label: 'Kanit (Modern Clean)' },
   { name: 'Manjari', label: 'Manjari (Warm Humanist)' },
   { name: 'Dongle', label: 'Dongle (Playful)' },
@@ -179,17 +186,32 @@ export function WindowsSystemTray({
 
   // Click outside flyout to close
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        isOpen &&
-        flyoutRef.current &&
-        !flyoutRef.current.contains(e.target as Node)
-      ) {
-        setIsOpen(false);
-      }
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+
+      // Ignore if element was unmounted from DOM during React state update
+      if (!document.body.contains(target)) return;
+
+      // Ignore if click/touch is inside flyout container
+      if (flyoutRef.current && flyoutRef.current.contains(target)) return;
+
+      setIsOpen(false);
     };
-    window.addEventListener('mousedown', handleClickOutside);
-    return () => window.removeEventListener('mousedown', handleClickOutside);
+
+    // Delay binding listener slightly so opening click does not trigger close
+    const timer = setTimeout(() => {
+      window.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('touchstart', handleClickOutside);
+    }, 60);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [isOpen]);
 
   const handleDownloadStartupScript = () => {

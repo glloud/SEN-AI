@@ -23,8 +23,15 @@ const THEME_ACCENTS = [
 
 const FONT_OPTIONS = [
   { id: 'Alata', name: 'Alata (Default Soft)', style: "'Alata', sans-serif" },
-  { id: 'Gruppo', name: 'Gruppo', style: "'Gruppo', sans-serif" },
+  { id: 'Comfortaa', name: 'Comfortaa (Soft & Calm Bold)', style: "'Comfortaa', sans-serif" },
+  { id: 'Quicksand', name: 'Quicksand (Warm Soft Bold)', style: "'Quicksand', sans-serif" },
+  { id: 'Outfit', name: 'Outfit (Modern Calm Bold)', style: "'Outfit', sans-serif" },
+  { id: 'Plus Jakarta Sans', name: 'Plus Jakarta Sans (Organic Soft)', style: "'Plus Jakarta Sans', sans-serif" },
+  { id: 'Nunito', name: 'Nunito (Humanist Calm)', style: "'Nunito', sans-serif" },
+  { id: 'Syne', name: 'Syne (Distinctive Bold)', style: "'Syne', sans-serif" },
+  { id: 'Lexend', name: 'Lexend (Clean & Calm)', style: "'Lexend', sans-serif" },
   { id: 'Varela Round', name: 'Varela Round', style: "'Varela Round', sans-serif" },
+  { id: 'Gruppo', name: 'Gruppo', style: "'Gruppo', sans-serif" },
   { id: 'Kanit', name: 'Kanit', style: "'Kanit', sans-serif" },
   { id: 'Manjari', name: 'Manjari', style: "'Manjari', sans-serif" },
   { id: 'JetBrains Mono', name: 'JetBrains Mono', style: "'JetBrains Mono', monospace" },

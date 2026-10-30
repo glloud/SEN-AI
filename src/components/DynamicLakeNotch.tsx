@@ -138,17 +138,34 @@ export function DynamicLakeNotch({
     }
   }, [wakeDetected, isExpanded, setExpandedWithMotion]);
 
-  // Click outside listener
+  // Robust click & touch outside listener
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (notchRef.current && !notchRef.current.contains(event.target as Node)) {
-        setExpandedWithMotion(false);
-      }
+    if (!isExpanded) return;
+
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node | null;
+      if (!target) return;
+
+      // Ignore if element was unmounted from DOM during React state update
+      if (!document.body.contains(target)) return;
+
+      // Ignore if click/touch is inside the notch container
+      if (notchRef.current && notchRef.current.contains(target)) return;
+
+      setExpandedWithMotion(false);
     }
-    if (isExpanded) {
+
+    // Delay binding to avoid capturing the event that opened the notch
+    const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }, 60);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [isExpanded, setExpandedWithMotion]);
 
   // Global hotkey Ctrl+Shift+Space to toggle
