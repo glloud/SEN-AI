@@ -34,6 +34,8 @@ interface WindowsSystemTrayProps {
   onToggleScreenMirror: () => void;
   activeFont: string;
   onChangeFont: (font: string) => void;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const PRESET_THEMES = [
@@ -80,14 +82,23 @@ export function WindowsSystemTray({
   onToggleScreenMirror,
   activeFont,
   onChangeFont,
+  isOpen: propIsOpen,
+  onOpenChange,
 }: WindowsSystemTrayProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = propIsOpen !== undefined ? propIsOpen : internalIsOpen;
+
+  const setIsOpen = (next: boolean | ((prev: boolean) => boolean)) => {
+    const val = typeof next === 'function' ? next(isOpen) : next;
+    setInternalIsOpen(val);
+    if (onOpenChange) onOpenChange(val);
+  };
+
   const [majorCategory, setMajorCategory] = useState<'system' | 'personalization' | 'connectivity' | 'media'>('system');
   const [subCategory, setSubCategory] = useState<'display' | 'startup' | 'themes' | 'typography' | 'location' | 'apps' | 'music'>('display');
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
   const [downloadSuccess, setDownloadSuccess] = useState(false);
-  const isElectron = typeof window !== 'undefined' && Boolean((window as any).electronAPI);
 
   useEffect(() => {
     const api = (window as any).electronAPI;
@@ -251,12 +262,26 @@ export function WindowsSystemTray({
   };
 
   return (
-    <div className="fixed bottom-0 right-0 z-40 select-none font-sans pointer-events-none" ref={flyoutRef}>
+    <div
+      className="fixed bottom-0 right-0 z-40 select-none font-sans pointer-events-none"
+      ref={flyoutRef}
+      onMouseEnter={() => {
+        (window as any).electronAPI?.setIgnoreMouseEvents(false);
+      }}
+      onMouseLeave={() => {
+        if (!isOpen) {
+          (window as any).electronAPI?.setIgnoreMouseEvents(true, { forward: true });
+        }
+      }}
+    >
       {/* 1. SEPARATE SETTINGS FLYOUT */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             data-interactive="true"
+            onMouseEnter={() => {
+              (window as any).electronAPI?.setIgnoreMouseEvents(false);
+            }}
             initial={{ opacity: 0, y: 18, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 18, scale: 0.96 }}
@@ -700,7 +725,7 @@ export function WindowsSystemTray({
                       type="button"
                       onClick={handleDownloadStartupScript}
                       style={{ backgroundColor: accentColor, color: isLight ? '#ffffff' : '#000000' }}
-                      className="w-full mt-2 py-2 px-3 rounded-xl font-bold text-xs transition-transform active:scale-98 flex items-center justify-center gap-2 shadow-sm"
+                      className="w-full mt-2 py-2 px-3 rounded-xl font-bold text-xs transition-transform active:scale-98 flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                     >
                       <Power className="w-3.5 h-3.5" />
                       <span>{downloadSuccess ? 'Downloaded to Downloads folder!' : '1-Click Install Windows Startup'}</span>
@@ -718,7 +743,7 @@ export function WindowsSystemTray({
                     <button
                       type="button"
                       onClick={onToggleScreenMirror}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         isScreenMirroring
                           ? 'bg-emerald-500/20 text-emerald-800 border border-emerald-500/40 font-bold'
                           : isLight ? 'bg-black/10 hover:bg-black/15 text-slate-900' : 'bg-white/10 hover:bg-white/20 text-slate-200'
@@ -745,7 +770,7 @@ export function WindowsSystemTray({
                     <button
                       type="button"
                       onClick={onToggleMusic}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         isPlayingMusic
                           ? 'bg-emerald-500/20 text-emerald-800 border border-emerald-500/40'
                           : isLight ? 'bg-black/10 text-slate-800 hover:text-slate-900' : 'bg-white/10 text-slate-400 hover:text-white'
@@ -764,7 +789,7 @@ export function WindowsSystemTray({
                         type="button"
                         onClick={() => onChangeMusicSource('Spotify')}
                         style={musicSource === 'Spotify' ? { backgroundColor: isLight ? `${accentColor}44` : `${accentColor}33`, borderColor: `${accentColor}88` } : {}}
-                        className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all ${
+                        className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-pointer ${
                           musicSource === 'Spotify'
                             ? isLight ? 'text-slate-900 font-bold' : 'text-white'
                             : isLight ? 'bg-black/3 border-black/8 text-slate-700 hover:text-slate-900' : 'bg-white/5 border-white/8 text-slate-400 hover:text-slate-200'
@@ -778,7 +803,7 @@ export function WindowsSystemTray({
                         type="button"
                         onClick={() => onChangeMusicSource('YouTube Music')}
                         style={musicSource === 'YouTube Music' ? { backgroundColor: isLight ? `${accentColor}44` : `${accentColor}33`, borderColor: `${accentColor}88` } : {}}
-                        className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all ${
+                        className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-pointer ${
                           musicSource === 'YouTube Music'
                             ? isLight ? 'text-slate-900 font-bold' : 'text-white'
                             : isLight ? 'bg-black/3 border-black/8 text-slate-700 hover:text-slate-900' : 'bg-white/5 border-white/8 text-slate-400 hover:text-slate-200'
@@ -823,7 +848,7 @@ export function WindowsSystemTray({
                       </div>
                       <button
                         type="submit"
-                        className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-colors ${
+                        className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-colors cursor-pointer ${
                           isLight ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-white text-black hover:bg-slate-200'
                         }`}
                       >
@@ -836,7 +861,7 @@ export function WindowsSystemTray({
                     type="button"
                     onClick={handleDetectGPS}
                     disabled={geoLocating}
-                    className={`w-full py-2 px-3 rounded-xl border transition-colors flex items-center justify-center gap-2 text-xs font-bold ${
+                    className={`w-full py-2 px-3 rounded-xl border transition-colors flex items-center justify-center gap-2 text-xs font-bold cursor-pointer ${
                       isLight
                         ? 'bg-black/5 hover:bg-black/10 border-black/10 text-slate-900'
                         : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300 hover:text-white'
@@ -897,7 +922,7 @@ export function WindowsSystemTray({
                         type="submit"
                         disabled={!newAppName.trim()}
                         style={{ backgroundColor: accentColor, color: isLight ? '#ffffff' : '#000000' }}
-                        className="w-full py-1.5 rounded-xl disabled:opacity-40 font-bold text-xs transition-colors"
+                        className="w-full py-1.5 rounded-xl disabled:opacity-40 font-bold text-xs transition-colors cursor-pointer"
                       >
                         Link App into Category
                       </button>
@@ -924,7 +949,7 @@ export function WindowsSystemTray({
                             <button
                               type="button"
                               onClick={() => onDeleteCustomApp(app.id)}
-                              className={`p-1 transition-colors ${
+                              className={`p-1 transition-colors cursor-pointer ${
                                 isLight ? 'text-slate-500 hover:text-rose-600' : 'text-slate-400 hover:text-rose-400'
                               }`}
                               title="Delete link"
@@ -943,61 +968,65 @@ export function WindowsSystemTray({
         )}
       </AnimatePresence>
 
-      {/* 2. WINDOWS 11 TASKBAR NOTIFICATION TRAY STRIP (Shown in browser preview mode; in Electron the native Windows taskbar icon is used) */}
-      {!isElectron && (
-        <div
-          data-interactive="true"
-          style={{
-            backgroundColor: isLight ? `${mainColor}f5` : `${mainColor}eb`,
-            borderColor: isLight ? 'rgba(0,0,0,0.15)' : `${accentColor}44`,
-          }}
-          className={`h-10 px-3 backdrop-blur-2xl border-t border-l rounded-tl-xl flex items-center gap-2 shadow-2xl transition-colors duration-300 pointer-events-auto ${
-            isLight ? 'text-slate-900' : 'text-slate-100'
+      {/* 2. WINDOWS 11 TASKBAR NOTIFICATION TRAY STRIP */}
+      <div
+        data-interactive="true"
+        onMouseEnter={() => {
+          (window as any).electronAPI?.setIgnoreMouseEvents(false);
+        }}
+        style={{
+          backgroundColor: isLight ? `${mainColor}f5` : `${mainColor}eb`,
+          borderColor: isLight ? 'rgba(0,0,0,0.15)' : `${accentColor}44`,
+        }}
+        className={`h-10 px-3 backdrop-blur-2xl border-t border-l rounded-tl-xl flex items-center gap-2 shadow-2xl transition-colors duration-300 pointer-events-auto cursor-pointer ${
+          isLight ? 'text-slate-900' : 'text-slate-100'
+        }`}
+      >
+        {/* Hidden Icons Toggle Arrow (^) */}
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`flex items-center justify-center w-7 h-7 rounded-lg transition-all cursor-pointer ${
+            isOpen
+              ? isLight ? 'bg-black/15 text-slate-900' : 'bg-white/20 text-white'
+              : isLight ? 'hover:bg-black/10 text-slate-700' : 'hover:bg-white/10 text-slate-300 hover:text-white'
           }`}
+          title="Hidden icons & SEN Settings"
         >
-          {/* Hidden Icons Toggle Arrow (^) */}
-          <button
-            type="button"
-            onClick={() => setIsOpen(!isOpen)}
-            className={`flex items-center justify-center w-7 h-7 rounded-lg transition-all ${
-              isOpen
-                ? isLight ? 'bg-black/15 text-slate-900' : 'bg-white/20 text-white'
-                : isLight ? 'hover:bg-black/10 text-slate-700' : 'hover:bg-white/10 text-slate-300 hover:text-white'
-            }`}
-            title="Hidden icons & SEN Settings"
-          >
-            <ChevronUp
-              className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-              style={isOpen ? { color: isLight ? '#0f172a' : accentColor } : {}}
-            />
-          </button>
+          <ChevronUp
+            className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+            style={isOpen ? { color: isLight ? '#0f172a' : accentColor } : {}}
+          />
+        </button>
 
-          {/* Live Audio Output Pill Indicator */}
-          <button
-            type="button"
-            onClick={() => setIsOpen(!isOpen)}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-bold transition-all ${
-              isLight
-                ? 'bg-black/5 hover:bg-black/10 border-black/10 text-slate-900'
-                : 'bg-white/5 hover:bg-white/10 border-white/8 text-slate-200'
-            }`}
-            title="Audio output state"
-          >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accentColor }} />
-            <span>SEN</span>
-          </button>
+        {/* Live Audio Output Pill Indicator */}
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+            isLight
+              ? 'bg-black/5 hover:bg-black/10 border-black/10 text-slate-900'
+              : 'bg-white/5 hover:bg-white/10 border-white/8 text-slate-200'
+          }`}
+          title="Audio output state"
+        >
+          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accentColor }} />
+          <span>SEN</span>
+        </button>
 
-          {/* Clock & Date Widget */}
-          <div className={`flex flex-col text-right pl-2 border-l ${isLight ? 'border-black/15' : 'border-white/10'}`}>
-            <span className={`text-[11px] font-bold leading-tight font-mono tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              {currentTime || '10:42 AM'}
-            </span>
-            <span className={`text-[9px] leading-tight font-mono ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-              {currentDate || '10/30/2026'}
-            </span>
-          </div>
+        {/* Clock & Date Widget */}
+        <div
+          onClick={() => setIsOpen(!isOpen)}
+          className={`flex flex-col text-right pl-2 border-l ${isLight ? 'border-black/15' : 'border-white/10'}`}
+        >
+          <span className={`text-[11px] font-bold leading-tight font-mono tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            {currentTime || '10:42 AM'}
+          </span>
+          <span className={`text-[9px] leading-tight font-mono ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+            {currentDate || '10/30/2026'}
+          </span>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -72,6 +72,10 @@ export default function App() {
   // Power state simulation
   const [powerMode, setPowerMode] = useState<'normal' | 'locked' | 'sleeping' | 'restarting' | 'shutdown'>('normal');
 
+  // Track notch expansion and settings flyout state for seamless Electron overlay focus
+  const [isNotchExpanded, setIsNotchExpanded] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   // Persist and apply root theme colors dynamically
   useEffect(() => {
     localStorage.setItem('sen_main_color', mainColor);
@@ -291,6 +295,11 @@ export default function App() {
     const api = (window as any).electronAPI;
     if (!api || typeof api.setIgnoreMouseEvents !== 'function') return;
 
+    if (isNotchExpanded || isSettingsOpen) {
+      api.setIgnoreMouseEvents(false);
+      return;
+    }
+
     // Start with clicks forwarded to the real Windows desktop
     api.setIgnoreMouseEvents(true, { forward: true });
 
@@ -305,7 +314,9 @@ export default function App() {
           el.closest('input') ||
           el.closest('textarea') ||
           el.closest('a') ||
-          el.closest('[role="button"]')
+          el.closest('select') ||
+          el.closest('[role="button"]') ||
+          el.closest('.pointer-events-auto')
         )
       );
 
@@ -315,11 +326,11 @@ export default function App() {
       }
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { capture: true, passive: true });
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mousemove', handleMouseMove, { capture: true } as any);
     };
-  }, []);
+  }, [isNotchExpanded, isSettingsOpen]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden text-slate-100 font-sans select-none pointer-events-none bg-transparent">
@@ -357,6 +368,8 @@ export default function App() {
         onTriggerPowerAction={handleTriggerPowerAction}
         customApps={customApps}
         onAddCustomApp={handleAddCustomApp}
+        onOpenSettings={() => setIsSettingsOpen((prev) => !prev)}
+        onExpandedChange={setIsNotchExpanded}
       />
 
       {/* Windows 11 Taskbar System Tray & Hidden Icons Settings Flyout */}
@@ -378,6 +391,8 @@ export default function App() {
         onToggleScreenMirror={handleToggleDesktopMirror}
         activeFont={activeFont}
         onChangeFont={setActiveFont}
+        isOpen={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
       />
 
       {/* POWER STATE OVERLAYS */}

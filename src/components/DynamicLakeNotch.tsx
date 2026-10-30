@@ -9,6 +9,7 @@ import {
   SkipForward,
   ExternalLink,
   Calendar,
+  Settings,
 } from 'lucide-react';
 import { Message, CalendarEvent } from '../types.ts';
 import { ControlsCategory } from './categories/ControlsCategory.tsx';
@@ -37,6 +38,8 @@ interface DynamicLakeNotchProps {
   onTriggerPowerAction: (act: 'lock' | 'sleep' | 'restart' | 'shutdown') => void;
   customApps: AppItem[];
   onAddCustomApp: (app: AppItem) => void;
+  onOpenSettings?: () => void;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
 type CategoryTab = 'controls' | 'today' | 'stats' | 'clipboard' | 'apps' | 'power';
@@ -69,6 +72,8 @@ export function DynamicLakeNotch({
   onTriggerPowerAction,
   customApps,
   onAddCustomApp,
+  onOpenSettings,
+  onExpandedChange,
 }: DynamicLakeNotchProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -84,13 +89,14 @@ export function DynamicLakeNotch({
     setIsTransitioning(true);
     setIsExpanded((prev) => {
       const next = typeof target === 'function' ? target(prev) : target;
+      if (onExpandedChange) onExpandedChange(next);
       return next;
     });
     if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
     transitionTimerRef.current = setTimeout(() => {
       setIsTransitioning(false);
     }, 280);
-  }, []);
+  }, [onExpandedChange]);
 
   // Auto expand on wake word
   useEffect(() => {
@@ -176,6 +182,14 @@ export function DynamicLakeNotch({
     <div
       ref={notchRef}
       data-interactive="true"
+      onMouseEnter={() => {
+        (window as any).electronAPI?.setIgnoreMouseEvents(false);
+      }}
+      onMouseLeave={() => {
+        if (!isExpanded) {
+          (window as any).electronAPI?.setIgnoreMouseEvents(true, { forward: true });
+        }
+      }}
       className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center select-none font-sans pointer-events-auto"
     >
       <motion.div
@@ -195,8 +209,11 @@ export function DynamicLakeNotch({
             ? 'w-[660px] max-w-[96vw] rounded-b-[18px] p-5 flex-col gap-3.5'
             : 'w-[180px] h-[32px] rounded-b-[9px] px-3 py-1 flex items-center justify-between cursor-pointer'
         }`}
-        onClick={() => {
-          if (!isExpanded) setExpandedWithMotion(true);
+        onClick={(e) => {
+          if (!isExpanded) {
+            e.stopPropagation();
+            setExpandedWithMotion(true);
+          }
         }}
       >
 
@@ -255,7 +272,7 @@ export function DynamicLakeNotch({
             >
               {/* CATEGORIES BAR: Fluid pill tabs */}
               <div
-                className="flex items-center justify-between w-full p-1 rounded-xl shrink-0 bg-[#080808] border border-[#161616]"
+                className="flex items-center justify-between gap-1 w-full p-1 rounded-xl shrink-0 bg-[#080808] border border-[#161616]"
               >
                 {CATEGORIES.map((cat) => {
                   const isActive = activeCategory === cat.id;
@@ -264,7 +281,7 @@ export function DynamicLakeNotch({
                       key={cat.id}
                       type="button"
                       onClick={() => setActiveCategory(cat.id)}
-                      className={`relative flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold text-center transition-colors duration-200 whitespace-nowrap ${
+                      className={`relative flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold text-center transition-colors duration-200 whitespace-nowrap cursor-pointer ${
                         isActive
                           ? isLight ? 'text-slate-900 font-bold' : 'text-white font-semibold'
                           : isLight ? 'text-slate-700 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
@@ -285,6 +302,19 @@ export function DynamicLakeNotch({
                     </button>
                   );
                 })}
+                {onOpenSettings && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenSettings();
+                    }}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+                    title="Open SEN Settings"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* CATEGORY ACTIVE VIEW */}
