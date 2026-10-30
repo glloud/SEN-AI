@@ -102,6 +102,7 @@ function createOverlayWindow() {
     y: 0,
     frame: false,            // Borderless floating notch overlay
     transparent: true,      // Transparent desktop canvas
+    backgroundColor: '#00000000',
     alwaysOnTop: true,      // Floats above full-screen apps and desktop
     skipTaskbar: false,     // Accessible from taskbar & hidden tray icons
     hasShadow: false,
@@ -112,6 +113,9 @@ function createOverlayWindow() {
       preload: path.join(__dirname, 'electron-preload.cjs'),
     },
   });
+
+  // Enable click-through by default so user can immediately click their Windows desktop!
+  mainWindow.setIgnoreMouseEvents(true, { forward: true });
 
   // Windows 11 Always-On-Top
   try {
@@ -262,6 +266,13 @@ ipcMain.on('toggle-overlay', () => {
 ipcMain.on('set-always-on-top', (_event, flag) => {
   if (mainWindow) {
     mainWindow.setAlwaysOnTop(Boolean(flag));
+  }
+});
+
+ipcMain.on('set-ignore-mouse-events', (event, ignore, options) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win && !win.isDestroyed()) {
+    win.setIgnoreMouseEvents(Boolean(ignore), options || { forward: true });
   }
 });
 

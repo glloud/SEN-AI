@@ -175,7 +175,8 @@ export function DynamicLakeNotch({
   return (
     <div
       ref={notchRef}
-      className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center select-none font-sans"
+      data-interactive="true"
+      className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center select-none font-sans pointer-events-auto"
     >
       <motion.div
         layout

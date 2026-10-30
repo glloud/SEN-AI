@@ -25,19 +25,27 @@ export function DesktopCanvas({
     return (r * 299 + g * 587 + b * 114) / 1000 > 150;
   })();
 
+  const isElectron = typeof window !== 'undefined' && Boolean((window as any).electronAPI);
+
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
 
+  // When running as a native Windows Electron overlay, the user's real desktop is behind the window.
+  // We do NOT render a solid wallpaper background over their desktop.
+  if (isElectron && !stream) {
+    return null;
+  }
+
   return (
-    <div className={`fixed inset-0 overflow-hidden select-none transition-colors duration-500 ${
-      isLight ? 'bg-[#f4f4f7]' : 'bg-[#08090d]'
+    <div className={`fixed inset-0 overflow-hidden select-none pointer-events-none transition-colors duration-500 ${
+      isElectron ? 'bg-transparent' : (isLight ? 'bg-[#f4f4f7]' : 'bg-[#08090d]')
     }`}>
       {/* If live Windows screen mirror is active, show the user's real screen */}
       {stream ? (
-        <div className="relative w-full h-full">
+        <div className="relative w-full h-full pointer-events-auto" data-interactive="true">
           <video
             ref={videoRef}
             autoPlay

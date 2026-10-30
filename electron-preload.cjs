@@ -14,4 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on(channel, (event, ...args) => func(...args));
     }
   },
+  setIgnoreMouseEvents: (ignore, options) => {
+    ipcRenderer.send('set-ignore-mouse-events', ignore, options);
+  },
 });

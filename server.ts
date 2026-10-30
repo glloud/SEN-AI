@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -708,17 +709,56 @@ export async function startServer(portToUse: number = defaultPort): Promise<numb
       });
       app.use(vite.middlewares);
     } catch {
-      const distPath = path.resolve(currentDirname, 'dist');
-      app.use(express.static(distPath));
-      app.get('*', (_req, res) => {
-        res.sendFile(path.resolve(distPath, 'index.html'));
-      });
+      serveStaticDist();
     }
   } else {
+    serveStaticDist();
+  }
+
+  function serveStaticDist() {
     const distPath = path.resolve(currentDirname, 'dist');
+    const mimeTypes: Record<string, string> = {
+      '.html': 'text/html; charset=utf-8',
+      '.js': 'application/javascript; charset=utf-8',
+      '.mjs': 'application/javascript; charset=utf-8',
+      '.css': 'text/css; charset=utf-8',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.svg': 'image/svg+xml',
+      '.ico': 'image/x-icon',
+      '.json': 'application/json',
+      '.woff': 'font/woff',
+      '.woff2': 'font/woff2',
+      '.ttf': 'font/ttf',
+      '.webp': 'image/webp',
+    };
+
     app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.resolve(distPath, 'index.html'));
+
+    app.get('*', (req, res) => {
+      const cleanPath = req.path.replace(/^\//, '');
+      const candidatePath = path.join(distPath, cleanPath);
+      
+      try {
+        if (cleanPath && fs.existsSync(candidatePath) && fs.statSync(candidatePath).isFile()) {
+          const ext = path.extname(candidatePath).toLowerCase();
+          res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
+          return res.send(fs.readFileSync(candidatePath));
+        }
+      } catch (_) {}
+
+      // Fallback to index.html for client-side SPA routing
+      const indexFile = path.join(distPath, 'index.html');
+      try {
+        if (fs.existsSync(indexFile)) {
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          return res.send(fs.readFileSync(indexFile));
+        }
+      } catch (_) {}
+
+      res.status(404).send('Not Found');
     });
   }
 

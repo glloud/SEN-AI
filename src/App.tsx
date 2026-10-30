@@ -286,8 +286,43 @@ export default function App() {
     }
   }, [desktopStream]);
 
+  // Sync Electron click-through overlay so user can click anywhere on their desktop
+  useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (!api || typeof api.setIgnoreMouseEvents !== 'function') return;
+
+    // Start with clicks forwarded to the real Windows desktop
+    api.setIgnoreMouseEvents(true, { forward: true });
+
+    let isHoveringInteractive = false;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const isInteractive = Boolean(
+        el && (
+          el.closest('[data-interactive="true"]') ||
+          el.closest('button') ||
+          el.closest('input') ||
+          el.closest('textarea') ||
+          el.closest('a') ||
+          el.closest('[role="button"]')
+        )
+      );
+
+      if (isInteractive !== isHoveringInteractive) {
+        isHoveringInteractive = isInteractive;
+        api.setIgnoreMouseEvents(!isInteractive, { forward: true });
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
+
   return (
-    <div className="relative w-screen h-screen overflow-hidden text-slate-100 font-sans select-none">
+    <div className="relative w-screen h-screen overflow-hidden text-slate-100 font-sans select-none pointer-events-none bg-transparent">
       {/* Night Light Screen Filter Overlay */}
       <div
         id="night-light-filter"
@@ -347,7 +382,7 @@ export default function App() {
 
       {/* POWER STATE OVERLAYS */}
       {powerMode === 'locked' && (
-        <div className="fixed inset-0 z-50 bg-[#090b10]/95 backdrop-blur-3xl flex flex-col items-center justify-center p-6 text-center animate-fadeIn">
+        <div data-interactive="true" className="fixed inset-0 z-50 bg-[#090b10]/95 backdrop-blur-3xl flex flex-col items-center justify-center p-6 text-center animate-fadeIn pointer-events-auto">
           <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center mb-6 shadow-2xl">
             <Lock className="w-8 h-8" style={{ color: accentColor }} />
           </div>
@@ -357,7 +392,7 @@ export default function App() {
             type="button"
             onClick={() => setPowerMode('normal')}
             style={{ backgroundColor: accentColor, color: '#000000' }}
-            className="px-6 py-2.5 rounded-2xl font-semibold text-xs transition-transform active:scale-95 shadow-lg hover:opacity-90"
+            className="px-6 py-2.5 rounded-2xl font-semibold text-xs transition-transform active:scale-95 shadow-lg hover:opacity-90 cursor-pointer"
           >
             Unlock Session
           </button>
@@ -366,8 +401,9 @@ export default function App() {
 
       {powerMode === 'sleeping' && (
         <div
+          data-interactive="true"
           onClick={() => setPowerMode('normal')}
-          className="fixed inset-0 z-50 bg-black cursor-pointer flex items-center justify-center text-slate-700 hover:text-slate-500 transition-colors"
+          className="fixed inset-0 z-50 bg-black cursor-pointer flex items-center justify-center text-slate-700 hover:text-slate-500 transition-colors pointer-events-auto"
         >
           <div className="text-xs font-mono tracking-widest uppercase">
             [ Sleep Mode &bull; Click anywhere to wake ]
@@ -376,14 +412,14 @@ export default function App() {
       )}
 
       {powerMode === 'restarting' && (
-        <div className="fixed inset-0 z-50 bg-[#06080d] flex flex-col items-center justify-center gap-4 text-center">
+        <div data-interactive="true" className="fixed inset-0 z-50 bg-[#06080d] flex flex-col items-center justify-center gap-4 text-center pointer-events-auto">
           <RotateCcw className="w-10 h-10 animate-spin" style={{ color: accentColor }} />
           <div className="text-sm font-semibold text-white">Restarting Windows &amp; SEN...</div>
         </div>
       )}
 
       {powerMode === 'shutdown' && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center gap-4 text-center">
+        <div data-interactive="true" className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center gap-4 text-center pointer-events-auto">
           <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-600 mb-2">
             <Power className="w-7 h-7" />
           </div>
@@ -391,7 +427,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setPowerMode('normal')}
-            className="mt-2 px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors"
+            className="mt-2 px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors cursor-pointer"
           >
             Power On SEN
           </button>

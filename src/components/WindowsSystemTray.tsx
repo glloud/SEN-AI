@@ -87,6 +87,16 @@ export function WindowsSystemTray({
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const isElectron = typeof window !== 'undefined' && Boolean((window as any).electronAPI);
+
+  useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (api && typeof api.receiveFromMain === 'function') {
+      api.receiveFromMain('open-sen-settings', () => {
+        setIsOpen(true);
+      });
+    }
+  }, []);
 
   const isLight = (() => {
     if (!mainColor || !mainColor.startsWith('#')) return false;
@@ -241,16 +251,17 @@ export function WindowsSystemTray({
   };
 
   return (
-    <div className="fixed bottom-0 right-0 z-40 select-none font-sans" ref={flyoutRef}>
+    <div className="fixed bottom-0 right-0 z-40 select-none font-sans pointer-events-none" ref={flyoutRef}>
       {/* 1. SEPARATE SETTINGS FLYOUT */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            data-interactive="true"
             initial={{ opacity: 0, y: 18, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 18, scale: 0.96 }}
             transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-            className={`absolute bottom-12 right-2 w-[440px] max-w-[95vw] rounded-2xl border shadow-2xl backdrop-blur-3xl overflow-hidden flex flex-col z-50 ${
+            className={`absolute bottom-12 right-2 w-[440px] max-w-[95vw] rounded-2xl border shadow-2xl backdrop-blur-3xl overflow-hidden flex flex-col z-50 pointer-events-auto ${
               isLight ? 'text-slate-900 shadow-slate-300/50' : 'text-slate-100'
             }`}
             style={{
@@ -932,58 +943,61 @@ export function WindowsSystemTray({
         )}
       </AnimatePresence>
 
-      {/* 2. WINDOWS 11 TASKBAR NOTIFICATION TRAY STRIP */}
-      <div
-        style={{
-          backgroundColor: isLight ? `${mainColor}f5` : `${mainColor}eb`,
-          borderColor: isLight ? 'rgba(0,0,0,0.15)' : `${accentColor}44`,
-        }}
-        className={`h-10 px-3 backdrop-blur-2xl border-t border-l rounded-tl-xl flex items-center gap-2 shadow-2xl transition-colors duration-300 ${
-          isLight ? 'text-slate-900' : 'text-slate-100'
-        }`}
-      >
-        {/* Hidden Icons Toggle Arrow (^) */}
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className={`flex items-center justify-center w-7 h-7 rounded-lg transition-all ${
-            isOpen
-              ? isLight ? 'bg-black/15 text-slate-900' : 'bg-white/20 text-white'
-              : isLight ? 'hover:bg-black/10 text-slate-700' : 'hover:bg-white/10 text-slate-300 hover:text-white'
+      {/* 2. WINDOWS 11 TASKBAR NOTIFICATION TRAY STRIP (Shown in browser preview mode; in Electron the native Windows taskbar icon is used) */}
+      {!isElectron && (
+        <div
+          data-interactive="true"
+          style={{
+            backgroundColor: isLight ? `${mainColor}f5` : `${mainColor}eb`,
+            borderColor: isLight ? 'rgba(0,0,0,0.15)' : `${accentColor}44`,
+          }}
+          className={`h-10 px-3 backdrop-blur-2xl border-t border-l rounded-tl-xl flex items-center gap-2 shadow-2xl transition-colors duration-300 pointer-events-auto ${
+            isLight ? 'text-slate-900' : 'text-slate-100'
           }`}
-          title="Hidden icons & SEN Settings"
         >
-          <ChevronUp
-            className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-            style={isOpen ? { color: isLight ? '#0f172a' : accentColor } : {}}
-          />
-        </button>
+          {/* Hidden Icons Toggle Arrow (^) */}
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className={`flex items-center justify-center w-7 h-7 rounded-lg transition-all ${
+              isOpen
+                ? isLight ? 'bg-black/15 text-slate-900' : 'bg-white/20 text-white'
+                : isLight ? 'hover:bg-black/10 text-slate-700' : 'hover:bg-white/10 text-slate-300 hover:text-white'
+            }`}
+            title="Hidden icons & SEN Settings"
+          >
+            <ChevronUp
+              className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+              style={isOpen ? { color: isLight ? '#0f172a' : accentColor } : {}}
+            />
+          </button>
 
-        {/* Live Audio Output Pill Indicator */}
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-bold transition-all ${
-            isLight
-              ? 'bg-black/5 hover:bg-black/10 border-black/10 text-slate-900'
-              : 'bg-white/5 hover:bg-white/10 border-white/8 text-slate-200'
-          }`}
-          title="Audio output state"
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accentColor }} />
-          <span>SEN</span>
-        </button>
+          {/* Live Audio Output Pill Indicator */}
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-bold transition-all ${
+              isLight
+                ? 'bg-black/5 hover:bg-black/10 border-black/10 text-slate-900'
+                : 'bg-white/5 hover:bg-white/10 border-white/8 text-slate-200'
+            }`}
+            title="Audio output state"
+          >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accentColor }} />
+            <span>SEN</span>
+          </button>
 
-        {/* Clock & Date Widget */}
-        <div className={`flex flex-col text-right pl-2 border-l ${isLight ? 'border-black/15' : 'border-white/10'}`}>
-          <span className={`text-[11px] font-bold leading-tight font-mono tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
-            {currentTime || '10:42 AM'}
-          </span>
-          <span className={`text-[9px] leading-tight font-mono ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-            {currentDate || '10/30/2026'}
-          </span>
+          {/* Clock & Date Widget */}
+          <div className={`flex flex-col text-right pl-2 border-l ${isLight ? 'border-black/15' : 'border-white/10'}`}>
+            <span className={`text-[11px] font-bold leading-tight font-mono tabular-nums ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              {currentTime || '10:42 AM'}
+            </span>
+            <span className={`text-[9px] leading-tight font-mono ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+              {currentDate || '10/30/2026'}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
