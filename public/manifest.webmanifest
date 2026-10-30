@@ -1,0 +1,39 @@
+{
+  "name": "Dynamic Island AI Desktop Assistant",
+  "short_name": "Dynamic Island AI",
+  "description": "Minimalist Dynamic Island-inspired desktop AI assistant with smart multi-model routing, writing & summarization studio, Google Calendar scheduling, and desktop app integration.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0F17",
+  "theme_color": "#0B0F17",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='48' fill='%230b0f17'/><rect x='48' y='64' width='96' height='36' rx='18' fill='%2306b6d4'/><circle cx='130' cy='82' r='5' fill='%23ffffff'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='128' fill='%230b0f17'/><rect x='128' y='180' width='256' height='80' rx='40' fill='%2306b6d4'/><circle cx='340' cy='220' r='12' fill='%23ffffff'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quick Chat",
+      "url": "/?view=chat",
+      "description": "Open Dynamic Island Chat"
+    },
+    {
+      "name": "Summarize Studio",
+      "url": "/?view=summarize",
+      "description": "Open Text Summarization Studio"
+    },
+    {
+      "name": "Schedule Agenda",
+      "url": "/?view=schedule",
+      "description": "Open Google Calendar & Agenda"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Dynamic Island AI Desktop Assistant",
+  "description": "Minimalist Dynamic Island-inspired desktop AI assistant with smart multi-model routing, writing and summarization studio, Google Calendar scheduling, and PC startup integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

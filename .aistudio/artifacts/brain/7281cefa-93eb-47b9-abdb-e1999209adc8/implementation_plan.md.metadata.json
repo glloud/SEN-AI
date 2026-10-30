@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan for packaging SEN Desktop into standalone Windows .exe and .msi setup installers with Electron, electron-builder, auto-launch, and system tray integration.",
+  "updatedAt":  "2026-10-30T02:56:42.403457779Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
