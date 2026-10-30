@@ -1,49 +1,97 @@
 // SEN Desktop AI - Native Windows Transparent Desktop & Tray Overlay Launcher
-const { app, BrowserWindow, screen, globalShortcut, Tray, Menu } = require('electron');
+const { app, BrowserWindow, screen, globalShortcut, Tray, Menu, nativeImage, dialog, ipcMain } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const fs = require('fs');
+
+// Global Error Catcher - Prevents silent crashes that trigger Windows "Unspecified error"
+process.on('uncaughtException', (err) => {
+  console.error('[SEN Main] Uncaught Exception:', err);
+  try {
+    const logPath = path.join(app.getPath('userData') || '.', 'sen-crash.log');
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${err.stack || err}\n`);
+  } catch (_) {}
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[SEN Main] Unhandled Rejection:', reason);
+});
+
+// Single Instance Lock: Ensure only one instance of SEN runs at a time on Windows
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+}
 
 let mainWindow = null;
 let tray = null;
-let serverProcess = null;
+let activePort = 3000;
 
-// Automatically start the Express backend server in the background
-function startLocalServer() {
+// Start bundled backend server safely in-process
+async function initBackendServer() {
   try {
     const serverScript = path.join(__dirname, 'server.js');
-    
-    // In-process server execution: Runs inside Electron's built-in Node engine
-    // This allows the app to run on ANY Windows 11 PC without requiring Node.js to be installed!
-    try {
-      require(serverScript);
-      console.log('In-process backend server initialized on port 3000');
-      return;
-    } catch (requireErr) {
-      console.warn('In-process server load fallback to spawn:', requireErr.message);
+    if (fs.existsSync(serverScript)) {
+      const serverModule = require(serverScript);
+      if (typeof serverModule.startServer === 'function') {
+        activePort = await serverModule.startServer(3000);
+      }
+      console.log(`[SEN Main] Backend server running on port ${activePort}`);
+    } else {
+      console.warn('[SEN Main] server.js not found in directory, using direct file load fallback');
     }
-
-    // Fallback: spawn with ELECTRON_RUN_AS_NODE if needed
-    serverProcess = spawn(process.execPath, [serverScript], {
-      cwd: __dirname,
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', PORT: '3000', NODE_ENV: 'production' }
-    });
-
-    serverProcess.stdout?.on('data', (data) => {
-      console.log(`Server: ${data}`);
-    });
-
-    serverProcess.stderr?.on('data', (data) => {
-      console.error(`Server Error: ${data}`);
-    });
   } catch (err) {
-    console.error('Failed to start background server:', err);
+    console.error('[SEN Main] Backend server initialization warning:', err.message);
   }
 }
 
-function createOverlayWindow() {
-  // Start backend server before loading UI
-  startLocalServer();
+// Generate guaranteed 16x16 RGBA icon buffer for Windows System Tray
+function createFallbackTrayIcon() {
+  const size = 16;
+  const buffer = Buffer.alloc(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
+      const dx = x - 7.5;
+      const dy = y - 7.5;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= 7) {
+        // Cyan glow circle (#06b6d4)
+        buffer[idx] = 6;       // R
+        buffer[idx + 1] = 182; // G
+        buffer[idx + 2] = 212; // B
+        buffer[idx + 3] = 255; // A
+      } else {
+        buffer[idx + 3] = 0;   // Transparent
+      }
+    }
+  }
+  return nativeImage.createFromBuffer(buffer, { width: size, height: size });
+}
 
+// Safe tray icon loader that NEVER throws
+function getTrayIcon() {
+  const possiblePaths = [
+    path.join(__dirname, 'dist', 'favicon.ico'),
+    path.join(__dirname, 'public', 'favicon.ico'),
+    path.join(__dirname, 'public', 'assets', 'aistudio', 'image_6bad7b3d.png'),
+    path.join(process.resourcesPath || '', 'public', 'favicon.ico'),
+  ];
+
+  for (const iconPath of possiblePaths) {
+    try {
+      if (fs.existsSync(iconPath)) {
+        const img = nativeImage.createFromPath(iconPath);
+        if (!img.isEmpty()) {
+          return img.resize({ width: 16, height: 16 });
+        }
+      }
+    } catch (_) {}
+  }
+
+  return createFallbackTrayIcon();
+}
+
+function createOverlayWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width, height } = primaryDisplay.bounds;
 
@@ -52,10 +100,10 @@ function createOverlayWindow() {
     height: height,
     x: 0,
     y: 0,
-    frame: false, // Frameless transparent overlay
-    transparent: true,
-    alwaysOnTop: true, // Float on top of Windows desktop and open applications
-    skipTaskbar: false, // Accessible from taskbar and system tray
+    frame: false,            // Borderless floating notch overlay
+    transparent: true,      // Transparent desktop canvas
+    alwaysOnTop: true,      // Floats above full-screen apps and desktop
+    skipTaskbar: false,     // Accessible from taskbar & hidden tray icons
     hasShadow: false,
     resizable: false,
     webPreferences: {
@@ -65,126 +113,180 @@ function createOverlayWindow() {
     },
   });
 
-  // Ensure window floats above standard windows (Screen Saver level overlay)
-  mainWindow.setAlwaysOnTop(true, 'screen-saver');
-  mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  // Windows 11 Always-On-Top
+  try {
+    mainWindow.setAlwaysOnTop(true);
+    if (process.platform === 'darwin') {
+      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    }
+  } catch (err) {
+    console.warn('[SEN Main] setAlwaysOnTop warning:', err);
+  }
 
-  // Wait 1.5 seconds for server to spin up, then load URL
-  setTimeout(() => {
-    mainWindow.loadURL('http://localhost:3000');
-  }, 1500);
+  // Primary URL load with auto-fallback to local static file
+  const localUrl = `http://127.0.0.1:${activePort}`;
+  const localDistHtml = path.join(__dirname, 'dist', 'index.html');
 
-  // Global hotkey to show/focus SEN AI
-  globalShortcut.register('CommandOrControl+Shift+Space', () => {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) {
-        mainWindow.focus();
+  const loadUi = () => {
+    mainWindow.loadURL(localUrl).catch((err) => {
+      console.warn(`[SEN Main] Could not load ${localUrl}, falling back to static file:`, err.message);
+      if (fs.existsSync(localDistHtml)) {
+        mainWindow.loadFile(localDistHtml);
       } else {
-        mainWindow.show();
+        setTimeout(loadUi, 1000);
+      }
+    });
+  };
+
+  // Give in-process server 300ms to mount, then load
+  setTimeout(loadUi, 300);
+
+  // Global hotkey to open/focus SEN Notch
+  try {
+    globalShortcut.register('CommandOrControl+Shift+Space', () => {
+      if (mainWindow) {
+        if (!mainWindow.isVisible()) {
+          mainWindow.show();
+        }
         mainWindow.focus();
       }
-    }
-  });
+    });
+  } catch (err) {
+    console.warn('[SEN Main] Could not register global shortcut:', err);
+  }
 
-  // Auto-launch with Windows PC boot
-  app.setLoginItemSettings({
-    openAtLogin: true,
-    path: process.execPath,
-  });
+  // Windows Startup Registration (Safe with try/catch)
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: true,
+      path: process.execPath,
+    });
+  } catch (err) {
+    console.warn('[SEN Main] Auto-start registration skipped:', err);
+  }
 
   createSystemTray();
 }
 
-// Create native Windows System Tray Icon in Taskbar (Hidden Icons area next to clock)
 function createSystemTray() {
   if (tray) return;
 
-  const iconPath = path.join(__dirname, 'public', 'assets', 'aistudio', 'image_6bad7b3d.png');
   try {
-    tray = new Tray(iconPath);
-  } catch (e) {
-    tray = new Tray(path.join(__dirname, 'public', 'favicon.ico'));
-  }
+    const icon = getTrayIcon();
+    tray = new Tray(icon);
 
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Open SEN AI Notch (Ctrl+Shift+Space)',
-      click: () => {
-        if (mainWindow) {
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Open SEN AI Notch (Ctrl+Shift+Space)',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show();
+            mainWindow.focus();
+          }
+        },
+      },
+      {
+        label: 'SEN Preferences & Customization',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show();
+            mainWindow.focus();
+            mainWindow.webContents.send('open-sen-settings');
+          }
+        },
+      },
+      {
+        label: 'Toggle Always-On-Top',
+        type: 'checkbox',
+        checked: true,
+        click: (item) => {
+          if (mainWindow) {
+            mainWindow.setAlwaysOnTop(item.checked);
+          }
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Launch on Windows Startup',
+        type: 'checkbox',
+        checked: true,
+        click: (item) => {
+          try {
+            app.setLoginItemSettings({
+              openAtLogin: item.checked,
+              path: process.execPath,
+            });
+          } catch (_) {}
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit SEN Desktop',
+        click: () => {
+          app.isQuitting = true;
+          app.quit();
+        },
+      },
+    ]);
+
+    tray.setToolTip('SEN AI Desktop - Windows 11 Dynamic Notch Assistant');
+    tray.setContextMenu(contextMenu);
+
+    tray.on('click', () => {
+      if (mainWindow) {
+        if (mainWindow.isVisible()) {
+          mainWindow.focus();
+        } else {
           mainWindow.show();
           mainWindow.focus();
         }
-      },
-    },
-    {
-      label: 'SEN Preferences & Customization',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
-          mainWindow.webContents.send('open-sen-settings');
-        }
-      },
-    },
-    {
-      label: 'Toggle Always-On-Top Overlay',
-      type: 'checkbox',
-      checked: true,
-      click: (item) => {
-        if (mainWindow) {
-          mainWindow.setAlwaysOnTop(item.checked, 'screen-saver');
-        }
-      },
-    },
-    { type: 'separator' },
-    {
-      label: 'Launch on Windows Startup',
-      type: 'checkbox',
-      checked: true,
-      click: (item) => {
-        app.setLoginItemSettings({
-          openAtLogin: item.checked,
-          path: process.execPath,
-        });
-      },
-    },
-    { type: 'separator' },
-    {
-      label: 'Quit SEN Desktop',
-      click: () => {
-        if (serverProcess) serverProcess.kill();
-        app.isQuitting = true;
-        app.quit();
-      },
-    },
-  ]);
-
-  tray.setToolTip('SEN AI Desktop Assistant (Taskbar Overlay)');
-  tray.setContextMenu(contextMenu);
-
-  tray.on('click', () => {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) {
-        mainWindow.focus();
-      } else {
-        mainWindow.show();
-        mainWindow.focus();
       }
-    }
-  });
+    });
+  } catch (err) {
+    console.error('[SEN Main] System tray creation error:', err);
+  }
 }
 
-app.whenReady().then(createOverlayWindow);
-
-app.on('window-all-closed', () => {
-  if (serverProcess) serverProcess.kill();
-  if (process.platform !== 'darwin') {
-    app.quit();
+// IPC Handlers for frontend communication
+ipcMain.on('toggle-overlay', () => {
+  if (mainWindow) {
+    if (mainWindow.isVisible()) {
+      mainWindow.hide();
+    } else {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   }
 });
 
-app.on('will-quit', () => {
-  if (serverProcess) serverProcess.kill();
+ipcMain.on('set-always-on-top', (_event, flag) => {
+  if (mainWindow) {
+    mainWindow.setAlwaysOnTop(Boolean(flag));
+  }
+});
+
+// Second instance triggered: focus the existing window
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    if (!mainWindow.isVisible()) mainWindow.show();
+    mainWindow.focus();
+  }
+});
+
+app.whenReady().then(async () => {
+  await initBackendServer();
+  createOverlayWindow();
+});
+
+app.on('window-all-closed', () => {
+  // On Windows, keep running in system tray unless user explicitly chooses Quit
+  if (app.isQuitting || process.platform !== 'darwin') {
+    // If user clicked close or quit
+    if (app.isQuitting) {
+      app.quit();
+    }
+  }
 });
 
 app.on('activate', () => {

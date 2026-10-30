@@ -7,11 +7,21 @@ import os from 'os';
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let currentDirname: string;
+try {
+  if (typeof __dirname !== 'undefined' && __dirname) {
+    currentDirname = __dirname;
+  } else if (typeof import.meta !== 'undefined' && import.meta && import.meta.url) {
+    currentDirname = path.dirname(fileURLToPath(import.meta.url));
+  } else {
+    currentDirname = process.cwd();
+  }
+} catch {
+  currentDirname = process.cwd();
+}
 
 const app = express();
-const port = process.env.PORT || 3000;
+const defaultPort = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -601,7 +611,7 @@ ${content}`;
 // API Route: Desktop Startup Script Downloads
 app.get('/api/desktop/scripts/:os', (req: Request, res: Response) => {
   const osType = req.params.os.toLowerCase();
-  const appUrl = process.env.APP_URL || `http://localhost:${port}`;
+  const appUrl = process.env.APP_URL || `http://localhost:${defaultPort}`;
 
   if (osType === 'windows') {
     // Windows Batch script to create startup shortcut in shell:startup
@@ -685,24 +695,56 @@ Comment=Apple-inspired Dynamic Island AI Desktop Assistant
 });
 
 // Mount Vite middleware for development
-async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer } = await import('vite');
-    const vite = await createServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+// Mount Vite middleware for development or serve dist in production
+export async function startServer(portToUse: number = defaultPort): Promise<number> {
+  const isProd = process.env.NODE_ENV === 'production' || typeof (process as any).versions?.electron !== 'undefined';
+  
+  if (!isProd) {
+    try {
+      const { createServer } = await import('vite');
+      const vite = await createServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch {
+      const distPath = path.resolve(currentDirname, 'dist');
+      app.use(express.static(distPath));
+      app.get('*', (_req, res) => {
+        res.sendFile(path.resolve(distPath, 'index.html'));
+      });
+    }
   } else {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
+    const distPath = path.resolve(currentDirname, 'dist');
+    app.use(express.static(distPath));
     app.get('*', (_req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      res.sendFile(path.resolve(distPath, 'index.html'));
     });
   }
 
-  app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+  return new Promise((resolve) => {
+    let currentAttemptPort = portToUse;
+    const tryListen = (p: number) => {
+      const serverInstance = app.listen(p, () => {
+        const address = serverInstance.address();
+        const activePort = typeof address === 'object' && address ? address.port : p;
+        console.log(`Server running at http://localhost:${activePort}`);
+        resolve(activePort);
+      });
+
+      serverInstance.on('error', (err: any) => {
+        if (err.code === 'EADDRINUSE') {
+          console.warn(`Port ${p} in use, trying port ${p + 1}...`);
+          tryListen(p === 0 ? 0 : p + 1);
+        } else {
+          console.error('Server error:', err);
+          resolve(p);
+        }
+      });
+    };
+    tryListen(currentAttemptPort);
   });
 }
 
+// Auto-run if executed directly or in dev mode
 startServer();

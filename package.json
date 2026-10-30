@@ -50,6 +50,7 @@
     },
     "files": [
       "dist/**/*",
+      "public/**/*",
       "index.cjs",
       "electron-main.cjs",
       "electron-preload.cjs",
@@ -57,16 +58,21 @@
     ],
     "win": {
       "target": [
-        "nsis"
+        "nsis",
+        "portable"
       ]
     },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
+      "allowToChangeInstallationDirectory": true,
       "runAfterFinish": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "SEN AI Desktop"
+    },
+    "portable": {
+      "artifactName": "${productName} Portable.${ext}"
     }
   }
 }
