@@ -22,7 +22,7 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
 
-call npx esbuild server.ts --bundle --platform=node --format=cjs --outfile=server.js --external:electron
+call npx esbuild server.ts --bundle --platform=node --format=cjs --outfile=server.js --external:electron --external:vite --external:fsevents --external:esbuild
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to bundle backend server.
     pause

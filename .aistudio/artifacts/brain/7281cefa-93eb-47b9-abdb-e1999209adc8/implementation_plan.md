@@ -1,130 +1,109 @@
-# SEN Desktop AI — Windows 11 Native Companion & Dynamic Lake Notch
+# Implementation Plan — SEN Desktop AI Assistant: Dynamic Notch, Music Engine & First-Time Welcome Setup
 
-A native Windows 11 desktop AI companion and Dynamic Lake overlay engineered to run directly on the user's PC. Blends invisibly into monitor hardware bezels when idle, expands with liquid physics and dynamic motion blur, and operates with full system tray control and instant Gemini 3.8 Flash intelligence.
+Fixing click unresponsiveness and active media detection in the Dynamic Lake Notch, enhancing Gemini AI responsiveness, implementing a 480x480 square first-time Welcome Setup wizard, chamfering notch corners, setting default font to Alata with zero emojis for a truly minimalistic aesthetic, and writing comprehensive Windows 11 setup documentation.
 
-### User Review & Critical Decisions
+## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The following user preferences were confirmed during the interactive clarification phase:
+> The following user preferences were confirmed during clarification and feedback:
 
-- **Notch Bottom Corners**: Subtle engineered radius (8px to 10px precision chamfer) replacing large pill curvature for a precision hardware match against monitor bezels.
-- **Closed State Visual Invisibility**: When closed, the notch is strictly True Pitch Black (`#000000`) with zero outer glow or accent coloring, completely matching the physical monitor bezels.
-- **Dynamic Theme Reveal**: When expanded, the notch smoothly reveals the user's selected theme accent color, category tabs, and inner specular refraction. On collapse, the theme color smoothly fades back into pitch black.
-- **Animation & Motion Blur Profile**: Combination of Apple-grade liquid spring physics (`cubic-bezier(0.16, 1, 0.3, 1)` / low-mass spring), dynamic state-transition motion blur filter (`filter: blur(1.5px)` during expansion/collapse settling to `blur(0px)`), and GPU-accelerated composited fading.
-- **AI Responsiveness & Reliability**: Gemini 3.8 Flash model execution (`gemini-3.8-flash`) with function-calling fallbacks and local conversational intelligence so questions and wake words never go unanswered even on offline or unconfigured PCs.
-- **Windows 11 Packaging**: Standalone One-Click NSIS Setup Executable (`.exe`) with auto-start on Windows boot, transparent screen-saver overlay level, and settings embedded in the Windows System Tray (taskbar overflow arrow).
+- **Minimalistic Aesthetic & Typography**: Default font set to `Alata` (soft font). Completely clean interface with ZERO emojis anywhere in text, buttons, HUDs, or assistant outputs.
+- **First-Time Welcome Modal**: Floating 480x480 square glass card with a 3-step wizard (Location & Time -> Theme Colors -> Font Typography). Displayed once on initial setup and persisted to `localStorage`.
+- **Active Music Media Engine**: Native Web `navigator.mediaSession` synchronization combined with Spotify / YouTube Music player detection, active album artwork display, title/artist info, track scrubber, fluid audio visualizer, and media controls.
+- **Windows 11 Setup Guide**: Comprehensive `README_SETUP.md` in project root plus a 1-click text file download button inside SEN Desktop Settings.
 
 ---
 
-### 1. Overview & Core Concept
+## 1. Overview & Core Concept
 
-- **What It Does**: SEN runs as a persistent, ultra-lightweight desktop overlay and companion at the top-center of any Windows 11 screen. It provides instant AI intelligence, calendar scheduling, app launching, audio control, clipboard history, and hardware telemetry.
-- **Target Audience**: Windows 11 power users, developers, and creatives looking for a minimalist, Apple Dynamic Island / Hitodama companion that feels like an integrated operating system feature rather than an intrusive web browser window.
-- **Key Value**: Zero distraction when idle (pure black, zero glow, sharp 8–10px hardware chamfer), instant liquid access via click or hotkey (`Ctrl+Shift+Space`) or voice ("Hey Sen"), and full desktop integration without requiring server infrastructure or Node.js pre-installation.
+**SEN AI Desktop** is a Windows 11 floating overlay application anchored at the top-center of the screen as a sleek Dynamic Lake Notch, accompanied by a taskbar system tray settings flyout.
 
----
-
-### 2. User Experience & Visual Design
-
-#### A. Idle Notch (Monitor Bezel Hardware Match)
-- **Geometry**: Compact $180\text{px} \times 32\text{px}$ bar anchored flush to the top-center of the screen. Bottom corners radiused at exactly $9\text{px}$ (subtle engineered chamfer).
-- **Surface**: Pure Pitch Black (`#000000`).
-- **Borders & Shadows**: Strict zero outer glow. Hairline dark boundary (`rgba(255, 255, 255, 0.07)` or `#141414`) with a compact directional drop shadow (`0 2px 6px rgba(0,0,0,0.85)`).
-- **Indicators**: Hardware aperture camera dot + acoustic wake sensor dot that pulses only upon voice detection or active audio playback.
-
-#### B. Dynamic Liquid Expansion & Collapse
-- **Transition Dynamics**: Mass-damped spring curve (`stiffness: 240, damping: 26, mass: 0.7`) with subtle motion blur (`filter: blur(1.5px)` during the 180ms transit phase, settling cleanly to `blur(0px)`).
-- **Theme Color Reveal**: As the notch expands to its $640\text{px}$ workspace card, the user's customized theme palette smoothly cross-fades into view:
-  - Surface transforms from `#000000` to the user's custom `mainColor` with backdrop glass blur.
-  - Active category tab indicators and specular top light lines light up with `accentColor`.
-  - On collapse, the theme color fades back into true black `#000000` within 140ms.
-
-#### C. System Tray & Hidden Settings
-- **Taskbar Flyout**: Resident in the Windows 11 system tray (notification area arrow next to the clock).
-- **Right-Click Menu**: Quick access to "Open SEN AI", "Toggle Always-On-Top", "Run on Windows Startup", "Custom Theme & Fonts", and "Quit SEN".
-- **Plug-and-Play Setup**: Double-clicking the generated `.exe` installer installs SEN to `%LOCALAPPDATA%\Programs\sen-ai-desktop`, creates a desktop shortcut, registers auto-start, and immediately launches the overlay.
+This update resolves mouse unresponsiveness, adds real-time media session detection with album artwork and clean flowy audio visualizers, ensures Gemini AI backend responses are fully functional, chamfers notch corners with precision geometry (`rounded-b-[12px]`), enforces Alata soft typography with no emojis, and introduces a square multi-step First-Time Welcome Setup wizard.
 
 ---
 
-### 3. Key Technical Decisions & Trade-Offs
+## 2. User Experience & Visual Design
 
-- **Model Selection & Routing (`gemini-3.8-flash`)**:
-  - *Chosen Approach*: Exclusively use `@google/genai` with model `gemini-3.8-flash` across all text, coding, calendar, and general assistant requests.
-  - *Why*: Eliminates deprecated `gemini-2.5-flash` 404 errors and provides fast latency under 600ms.
-  - *Fallback Strategy*: If a user runs the `.exe` without an active Gemini API key, SEN automatically falls back to an embedded desktop command processor (handling system apps, timers, world clocks, calendar creation, and conversational guidelines) rather than throwing a silent or broken network error.
-- **In-Process Backend Server Execution for Electron**:
-  - *Chosen Approach*: Electron main process runs Express directly in-process via Node runtime (`require('./server.js')`) with child process spawn fallback.
-  - *Why*: Allows the `.exe` to run out-of-the-box on ANY Windows 11 computer without requiring Node.js, `npm`, or `npx` to be installed on the client's PC.
-- **Hardware-Accelerated Composited Motion**:
-  - *Chosen Approach*: Animate `transform`, `opacity`, and CSS `filter: blur(...)` using Framer Motion with `layout` transitions and `will-change: transform`.
-  - *Why*: Prevents layout stuttering or CPU spikes during desktop usage.
+### Key User Flows
+
+1. **First-Time Welcome Setup Wizard**:
+   - On initial launch (or when `sen_welcome_completed` is missing), a floating 480x480 square liquid glass card appears in the center of the screen.
+   - **Step 1 (Location & Time)**: Configure city location (manual entry or 1-click GPS auto-detect) and local time formatting.
+   - **Step 2 (Theme Customization)**: Select main glass background color and accent glow color, or choose a dark/OLED preset.
+   - **Step 3 (Typography & Font)**: Select Alata or soft desktop fonts.
+   - **Completion**: Saves preferences, sets `sen_welcome_completed = 'true'`, and smoothly fades into active desktop mode. Never appears again unless reset in settings or reinstalled.
+
+2. **Dynamic Lake Notch Interaction & Media Player**:
+   - Idle notch sits anchored at top center with chamfered corners (`rounded-b-[12px]`) and true pitch-black hardware finish (`#000000`).
+   - Responds to mouse click or global hotkey `Ctrl+Shift+Space`.
+   - **Media HUD**: When audio plays (via browser media session or music engine toggle), displays high-res album cover art, song title, artist name, time scrubber, fluid multi-bar visualizer, and playback controls (Play/Pause, Skip Back/Forward).
+
+3. **Working SEN AI Assistant**:
+   - User types or speaks query ("Ask Sen...").
+   - Transmits query to `/api/gemini/assist` running `@google/genai` with `gemini-3.8-flash`.
+   - Displays real-time assistant response, calendar scheduler actions, app launcher triggers, or system commands (strictly text/clean icons, no emojis).
 
 ---
 
-### 4. Technical Architecture & Data Strategy
+## 3. Technical Architecture & Data Strategy
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Windows 11 Desktop                       │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │     SEN Dynamic Lake Notch (Top Bezel Screen Saver)   │  │
-│  │   - Closed: 180x32px, #000000, 9px sharp corners      │  │
-│  │   - Open: 640px Liquid Glass, Theme Colors revealed   │  │
-│  │   - Motion Blur: State-transition filter blur         │  │
-│  └──────────────────────────┬────────────────────────────┘  │
-│                             │ User Input / Voice Wake       │
-│                             ▼                               │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │            Frontend React Orchestrator                │  │
-│  │   - App.tsx (State, Messages, Speech Recognition)     │  │
-│  │   - DynamicLakeNotch.tsx (Liquid layout, categories)  │  │
-│  └──────────────────────────┬────────────────────────────┘  │
-│                             │ HTTP POST /api/gemini/assist   │
-│                             ▼                               │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │          Local Express Backend (server.ts)            │  │
-│  │   - Gemini 3.8 Flash SDK (@google/genai)              │  │
-│  │   - Function Tools (Calendar, Apps, Timers)           │  │
-│  │   - Offline Desktop Intelligent Fallback Engine       │  │
-│  │   - Hardware Telemetry & Diagnostics (/api/system)    │  │
-│  └──────────────────────────┬────────────────────────────┘  │
-│                             │ Embedded in Electron          │
-│                             ▼                               │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │           Electron Host (electron-main.cjs)           │  │
-│  │   - Transparent Screen-Saver Level BrowserWindow      │  │
-│  │   - Windows System Tray Menu (Taskbar Overflow)       │  │
-│  │   - Global Hotkey: Ctrl+Shift+Space                   │  │
-│  │   - NSIS One-Click Plug-and-Play Installer Config     │  │
-│  └───────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             SEN AI DESKTOP APP                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │             First-Time Welcome Wizard (480x480 Square)              │   │
+│   │   [Step 1: GPS/City] ──► [Step 2: Theme Color] ──► [Step 3: Font]  │   │
+│   └──────────────────────────────────┬──────────────────────────────────┘   │
+│                                      │ (Saved to localStorage)              │
+│                                      ▼                                      │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                     Dynamic Lake Notch Header                       │   │
+│   │  - Chamfered Bezel Corners (rounded-b-[12px])                       │   │
+│   │  - Mouse Enter / Click Capture (setIgnoreMouseEvents)               │   │
+│   │  - Web MediaSession API + Music HUD (Album Art, Visualizer, Controls)│   │
+│   │  - AI Chat Input ──► POST /api/gemini/assist (@google/genai)        │   │
+│   └──────────────────────────────────┬──────────────────────────────────┘   │
+│                                      │                                      │
+│                                      ▼                                      │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                  Windows System Tray & Settings                     │   │
+│   │  - Dual Monitor, Startup Script Download, App Linker, Reset Setup   │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### State & Interaction Mapping
+### Component & File Mapping
 
-| Component | Trigger | Action & State Transition |
-| :--- | :--- | :--- |
-| **Idle Notch** | Mouse Click or "Hey Sen" | Triggers liquid expand, applies dynamic 1.5px motion blur, shifts surface from `#000000` to theme color, reveals categories. |
-| **Notch Form** | Text Submit or Voice Speech | Dispatches prompt to `/api/gemini/assist`; shows pulsing thinking indicator; appends AI answer and executes any function call (calendar, timer, app). |
-| **Notch Outside** | Click Outside or `Escape` | Initiates collapse spring; fades theme color back to `#000000`; sets corners to 9px chamfer. |
-| **System Tray** | Click or Right Click | Shows tray menu in Windows notification area: open notch, toggle overlay, autostart on boot, or quit. |
-| **AI Backend** | Missing API Key or Network Loss | Returns conversational desktop response with executable local actions instead of failing silently. |
+1. **`src/components/WelcomeSetupModal.tsx`** *(New)*:
+   - Floating 480x480 square glass card (`w-[480px] h-[480px]`).
+   - Multi-step wizard state machine (Location -> Theme -> Typography with Alata default).
+   - "Finish Setup" button sets `localStorage.setItem('sen_welcome_completed', 'true')`.
+
+2. **`src/components/DynamicLakeNotch.tsx`**:
+   - Precision chamfered bottom corners (`rounded-b-[12px]`).
+   - Native `navigator.mediaSession` listener to dynamically extract current track metadata (`title`, `artist`, `artwork` image URL) and playback state (`playing`, `paused`).
+   - Fluid SVG audio visualizer with multi-bar organic sine wave motion.
+   - Zero emojis in labels, status messages, or controls.
+
+3. **`src/App.tsx`**:
+   - Manages welcome modal visibility (`showWelcomeModal`).
+   - Sets initial font default to `Alata`.
+   - Electron overlay click-through routing for welcome modal, notch, and settings flyout.
+
+4. **`server.ts`**:
+   - Ensures `/api/gemini/assist` route initializes `GoogleGenAI` with `process.env.GEMINI_API_KEY` or fallback mock assistant if offline, with instructions to avoid emojis in AI responses.
+
+5. **`README_SETUP.md`** *(New)*:
+   - Detailed Windows 11 installation and configuration instructions file.
 
 ---
 
-### 5. Implementation Steps (Execution Phase)
+## 4. Key Product Decisions & Trade-Offs
 
-1. **Refine DynamicLakeNotch Geometry & Theme Mechanics**:
-   - Update notch bottom radius: exact $9\text{px}$ chamfer when closed, $18\text{px}$ when open.
-   - Closed state styling: strictly `#000000` background, no accent glow, dark bezel border.
-   - Open state styling: smoothly animates in `mainColor`, `accentColor` specular light, and border.
-   - Smooth liquid transition with dynamic motion blur during transit.
-2. **Harden AI Assistant Engine (`server.ts` & `App.tsx`)**:
-   - Ensure all model calls use `gemini-3.8-flash`.
-   - Prevent empty assistant messages when tool calls or function calls are returned.
-   - Add robust local fallback responses so queries never fail or show empty bubbles.
-3. **Windows 11 Packaging & Standalone Desktop Config**:
-   - Verify `electron-main.cjs` and `package.json` NSIS build configuration for seamless one-click installer creation.
-   - Ensure system tray icon and autostart registry work out of the box.
-4. **Compile & Lint Verification**:
-   - Run `lint_applet` and `compile_applet` to confirm clean zero-error compilation.
+- **Alata Soft Typography & Zero Emojis**: Employs Google Font `Alata` as default for a soft, ultra-minimalistic aesthetic with zero emoji distractions.
+- **Web Media Session API + Player Engine**: Combines native `navigator.mediaSession` hooks with preset streams (Spotify & YouTube Music) so album cover artwork, track titles, and active playback controls work seamlessly.
+- **Square 480x480 Welcome Wizard**: Keeps first-time onboarding compact, centered, and visually focused without obscuring the desktop environment.
+- **Chamfered Bezel Geometry**: Precision 12px chamfered radiuses (`rounded-b-[12px]`) matching hardware display notches.

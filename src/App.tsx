@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { DynamicLakeNotch } from './components/DynamicLakeNotch.tsx';
 import { DesktopCanvas } from './components/DesktopCanvas.tsx';
 import { WindowsSystemTray } from './components/WindowsSystemTray.tsx';
+import { WelcomeSetupModal } from './components/WelcomeSetupModal.tsx';
 import { AppItem } from './components/categories/AppsCategory.tsx';
 import { useVoiceWake } from './hooks/useVoiceWake.ts';
 import { Message, CalendarEvent } from './types.ts';
@@ -48,9 +49,14 @@ export default function App() {
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [musicSource, setMusicSource] = useState<'Spotify' | 'YouTube Music'>('Spotify');
 
-  // Font customization
+  // Font customization (Default Alata)
   const [activeFont, setActiveFont] = useState<string>(() => {
-    return localStorage.getItem('sen_active_font') || 'Encode Sans Expanded';
+    return localStorage.getItem('sen_font_family') || localStorage.getItem('sen_active_font') || 'Alata';
+  });
+
+  // First-time Welcome Setup Modal State (only shown once)
+  const [showWelcome, setShowWelcome] = useState<boolean>(() => {
+    return !localStorage.getItem('sen_welcome_completed');
   });
 
   useEffect(() => {
@@ -438,7 +444,6 @@ export default function App() {
           <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-600 mb-2">
             <Power className="w-7 h-7" />
           </div>
-          <div className="text-sm font-semibold text-slate-400">System Powered Off</div>
           <button
             type="button"
             onClick={() => setPowerMode('normal')}
@@ -446,6 +451,20 @@ export default function App() {
           >
             Power On SEN
           </button>
+        </div>
+      )}
+
+      {/* FIRST-TIME WELCOME SETUP WIZARD (Square 480x480 Glass Card) */}
+      {showWelcome && (
+        <div data-interactive="true" className="pointer-events-auto">
+          <WelcomeSetupModal
+            onComplete={(cfg) => {
+              setPinnedCity(cfg.location);
+              setAccentColor(cfg.themeColor);
+              setActiveFont(cfg.fontFamily);
+              setShowWelcome(false);
+            }}
+          />
         </div>
       )}
     </div>

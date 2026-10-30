@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js dist-electron",
     "lint": "tsc --noEmit",
-    "electron:build": "npm run build && npx esbuild server.ts --bundle --platform=node --format=cjs --outfile=server.js --external:electron && electron-builder --win --x64"
+    "electron:build": "npm run build && npx esbuild server.ts --bundle --platform=node --format=cjs --outfile=server.js --external:electron --external:vite --external:fsevents --external:esbuild && electron-builder --win --x64"
   },
   "dependencies": {
     "@google/genai": "^2.32.0",

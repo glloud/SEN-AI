@@ -459,7 +459,8 @@ Your capabilities:
 3. Add to schedules & Google Calendar: When the user asks to schedule anything, call the 'createCalendarEvent' tool with clear title, date, and time.
 4. Writing & Summarization: Provide crisp, punchy, well-structured output. If summarizing, organize with clear sections and actionable bullet points.
 5. Voice & Tone: Minimalist, intelligent, polished, helpful, and concise. Avoid superfluous filler words.
-6. You have function calling tools: Always invoke tools when the user's request involves calendar scheduling, app launching, timer creation, or time checking.`;
+6. You have function calling tools: Always invoke tools when the user's request involves calendar scheduling, app launching, timer creation, or time checking.
+7. CRITICAL REQUIREMENT: Do NOT use any emojis in your output text. Keep all responses 100% emoji-free, clean, and soft minimal.`;
 
     // Format chat contents
     const contents: any[] = [];
@@ -786,5 +787,8 @@ export async function startServer(portToUse: number = defaultPort): Promise<numb
   });
 }
 
-// Auto-run if executed directly or in dev mode
-startServer();
+// Auto-run if executed directly or in dev mode (not required by Electron main process)
+const isElectronMainProcess = typeof process !== 'undefined' && Boolean(process.versions?.electron);
+if (!isElectronMainProcess) {
+  startServer();
+}

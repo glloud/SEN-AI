@@ -55,13 +55,13 @@ const PRESET_THEMES = [
 ];
 
 const PRESET_FONTS = [
-  { name: 'Encode Sans Expanded', label: 'Encode Sans Expanded (Default)' },
-  { name: 'Dongle', label: 'Dongle (Playful)' },
+  { name: 'Alata', label: 'Alata (Default Soft Minimalist)' },
+  { name: 'Gruppo', label: 'Gruppo (Minimalist)' },
+  { name: 'Varela Round', label: 'Varela Round (Soft One UI)' },
   { name: 'Kanit', label: 'Kanit (Modern Clean)' },
   { name: 'Manjari', label: 'Manjari (Warm Humanist)' },
-  { name: 'Varela Round', label: 'Varela Round (Soft One UI)' },
-  { name: 'Gruppo', label: 'Gruppo (Minimalist)' },
-  { name: 'Alata', label: 'Alata (Classic Apple)' },
+  { name: 'Dongle', label: 'Dongle (Playful)' },
+  { name: 'Encode Sans Expanded', label: 'Encode Sans Expanded' },
 ];
 
 export function WindowsSystemTray({
@@ -259,6 +259,60 @@ export function WindowsSystemTray({
     onAddCustomApp(newApp);
     setNewAppName('');
     setNewAppUrl('');
+  };
+
+  const handleDownloadSetupGuide = () => {
+    const content = `SEN AI DESKTOP - WINDOWS 11 INSTALLATION & TROUBLESHOOTING GUIDE
+===================================================================
+
+1. SYSTEM REQUIREMENTS
+-----------------------
+- Operating System: Windows 10 / Windows 11 (64-bit)
+- Environment: Node.js 18+ or Desktop Electron Client
+
+2. HOW TO RUN SEN AI DESKTOP
+-----------------------------
+Option A: Browser Preview Mode
+- Open terminal in workspace root
+- Run: npm install
+- Run: npm run dev
+- Open browser at http://localhost:3000
+
+Option B: Native Windows 11 Floating Notch
+- Run: npm run electron
+- SEN AI floats seamlessly at top center of display with click-through support!
+
+3. SETTING UP AUTOMATIC WINDOWS PC STARTUP
+-------------------------------------------
+- Open Settings in SEN AI Tray or Notch
+- Navigate to System -> Startup
+- Click "1-Click Install Windows Startup" (downloads sen-startup.bat)
+- Move "sen-startup.bat" to your Windows Startup directory:
+  C:\\Users\\<Username>\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup
+
+4. TROUBLESHOOTING "UNSPECIFIED ERROR" ON SETUP (.LNK SHORTCUT)
+----------------------------------------------------------------
+If Windows shows "Unspecified error" when launching SEN AI Desktop.lnk:
+1. Open Windows File Explorer and navigate to:
+   C:\\Users\\<Username>\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs
+2. Delete the broken shortcut file "SEN AI Desktop.lnk".
+3. Re-create a valid shortcut pointing to your installed path or run "npm run electron".
+4. Ensure no missing quoted arguments or invalid path spaces exist in Target field.
+
+5. KEYBOARD SHORTCUTS & FEATURES
+---------------------------------
+- Toggle Notch View: Ctrl + Shift + Space
+- Voice Wake: Say "Hey Sen" to expand notch automatically
+- Music Engine: Auto-syncs live tracks via Web Media Session API
+`;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'SEN_AI_Desktop_Setup_Guide.txt';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -729,6 +783,13 @@ export function WindowsSystemTray({
                     >
                       <Power className="w-3.5 h-3.5" />
                       <span>{downloadSuccess ? 'Downloaded to Downloads folder!' : '1-Click Install Windows Startup'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadSetupGuide}
+                      className="w-full mt-1.5 py-2 px-3 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 font-semibold text-xs transition-transform active:scale-98 flex items-center justify-center gap-2 text-white cursor-pointer"
+                    >
+                      <span>1-Click Download Installation &amp; Troubleshooting Guide (.txt)</span>
                     </button>
                   </div>
 

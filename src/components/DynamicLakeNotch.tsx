@@ -5,11 +5,13 @@ import {
   RotateCcw,
   Music,
   Pause,
+  Play,
   SkipBack,
   SkipForward,
   ExternalLink,
   Calendar,
   Settings,
+  Volume2,
 } from 'lucide-react';
 import { Message, CalendarEvent } from '../types.ts';
 import { ControlsCategory } from './categories/ControlsCategory.tsx';
@@ -79,11 +81,42 @@ export function DynamicLakeNotch({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [activeCategory, setActiveCategory] = useState<CategoryTab>('controls');
   const [inputText, setInputText] = useState('');
-  const [trackProgress, setTrackProgress] = useState(45);
+  const [trackProgress, setTrackProgress] = useState(42);
+
+  // Live Web Media Session State
+  const [mediaTitle, setMediaTitle] = useState('Midnight Ambient Flow');
+  const [mediaArtist, setMediaArtist] = useState('Lo-Fi Chill & Focus');
+  const [mediaAlbumArt, setMediaAlbumArt] = useState<string | null>(null);
+  const [isSystemMediaPlaying, setIsSystemMediaPlaying] = useState(isPlayingMusic);
 
   const notchRef = useRef<HTMLDivElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const transitionTimerRef = useRef<any>(null);
+
+  // Synchronize system Web Media Session API
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      const updateMediaState = () => {
+        if (navigator.mediaSession.metadata) {
+          const meta = navigator.mediaSession.metadata;
+          if (meta.title) setMediaTitle(meta.title);
+          if (meta.artist) setMediaArtist(meta.artist);
+          if (meta.artwork && meta.artwork.length > 0) {
+            setMediaAlbumArt(meta.artwork[meta.artwork.length - 1].src);
+          }
+        }
+        if (navigator.mediaSession.playbackState) {
+          setIsSystemMediaPlaying(navigator.mediaSession.playbackState === 'playing');
+        }
+      };
+
+      updateMediaState();
+      const interval = setInterval(updateMediaState, 1200);
+      return () => clearInterval(interval);
+    }
+  }, []);
+
+  const activePlaying = isPlayingMusic || isSystemMediaPlaying;
 
   const setExpandedWithMotion = useCallback((target: boolean | ((prev: boolean) => boolean)) => {
     setIsTransitioning(true);
@@ -130,18 +163,18 @@ export function DynamicLakeNotch({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setExpandedWithMotion]);
 
-  // Track progress when music is on
+  // Track progress ticker
   useEffect(() => {
     let interval: any = null;
-    if (isPlayingMusic) {
+    if (activePlaying) {
       interval = setInterval(() => {
-        setTrackProgress((p) => (p >= 180 ? 0 : p + 1));
+        setTrackProgress((p) => (p >= 210 ? 0 : p + 1));
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isPlayingMusic]);
+  }, [activePlaying]);
 
-  // Scroll to bottom of chat when new message arrives
+  // Scroll to bottom of chat
   useEffect(() => {
     if (isExpanded) {
       chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -161,20 +194,10 @@ export function DynamicLakeNotch({
     return `${mins}:${String(secs).padStart(2, '0')}`;
   };
 
-  const isLight = (() => {
-    if (!mainColor || !mainColor.startsWith('#')) return false;
-    const cleanHex = mainColor.replace('#', '');
-    const r = parseInt(cleanHex.substring(0, 2), 16) || 0;
-    const g = parseInt(cleanHex.substring(2, 4), 16) || 0;
-    const b = parseInt(cleanHex.substring(4, 6), 16) || 0;
-    return (r * 299 + g * 587 + b * 114) / 1000 > 150;
-  })();
-
-  // Apple-grade Liquid Spring Physics parameters (smooth, low-mass, non-clunky)
   const liquidSpring = {
     type: 'spring' as const,
-    stiffness: 240,
-    damping: 26,
+    stiffness: 260,
+    damping: 28,
     mass: 0.7,
   };
 
@@ -183,31 +206,31 @@ export function DynamicLakeNotch({
       ref={notchRef}
       data-interactive="true"
       onMouseEnter={() => {
-        (window as any).electronAPI?.setIgnoreMouseEvents(false);
-      }}
-      onMouseLeave={() => {
-        if (!isExpanded) {
-          (window as any).electronAPI?.setIgnoreMouseEvents(true, { forward: true });
+        if ((window as any).electronAPI?.setIgnoreMouseEvents) {
+          (window as any).electronAPI.setIgnoreMouseEvents(false);
         }
       }}
-      className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center select-none font-sans pointer-events-auto"
+      onMouseLeave={() => {
+        if (!isExpanded && (window as any).electronAPI?.setIgnoreMouseEvents) {
+          (window as any).electronAPI.setIgnoreMouseEvents(true, { forward: true });
+        }
+      }}
+      className="fixed top-0 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center select-none font-sans pointer-events-auto"
     >
       <motion.div
         layout
         transition={liquidSpring}
         style={{
           backgroundColor: '#000000',
-          borderColor: '#000000',
           boxShadow: isExpanded
-            ? '0 32px 80px -8px rgba(0, 0, 0, 0.98)'
-            : '0 2px 6px rgba(0, 0, 0, 0.95)',
-          filter: isTransitioning ? 'blur(1.5px)' : 'none',
-          willChange: 'transform, filter, border-radius',
+            ? '0 25px 60px -10px rgba(0, 0, 0, 0.95)'
+            : '0 2px 8px rgba(0, 0, 0, 0.90)',
         }}
-        className={`relative flex backdrop-blur-3xl overflow-hidden border-none transition-[filter,border-radius] duration-250 ease-out text-slate-100 bg-black ${
+        /* Chamfered corners rounded-b-[12px], pitch black with NO gray borders */
+        className={`relative flex backdrop-blur-3xl overflow-hidden border-0 text-slate-100 bg-black ${
           isExpanded
-            ? 'w-[660px] max-w-[96vw] rounded-b-[18px] p-5 flex-col gap-3.5'
-            : 'w-[180px] h-[32px] rounded-b-[9px] px-3 py-1 flex items-center justify-between cursor-pointer'
+            ? 'w-[640px] max-w-[96vw] rounded-b-[12px] p-5 flex-col gap-3.5'
+            : 'w-[180px] h-[32px] rounded-b-[12px] px-3 py-1 flex items-center justify-between cursor-pointer'
         }`}
         onClick={(e) => {
           if (!isExpanded) {
@@ -216,24 +239,22 @@ export function DynamicLakeNotch({
           }
         }}
       >
-
         <AnimatePresence mode="popLayout" initial={false}>
           {!isExpanded ? (
             /* ============================================================== */
-            /* 1. COMPACT IDLE NOTCH (Pitch-Black hardware bezel, ZERO text) */
+            /* 1. COMPACT IDLE NOTCH (Pitch Black, Chamfered, Minimal)        */
             /* ============================================================== */
             <motion.div
               key="compact-notch"
-              initial={{ opacity: 0, scale: 0.8 }}
+              initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
+              exit={{ opacity: 0, scale: 0.85 }}
               transition={{ duration: 0.12 }}
-              className="flex items-center justify-between w-full h-full px-1 shrink-0"
-              title='Click or say "Hey Sen"'
+              className="flex items-center justify-between w-full h-full px-1 shrink-0 bg-black"
+              title="Click or press Ctrl+Shift+Space"
             >
-              {/* Center camera aperture lens & microphone indicator */}
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#070707] border border-[#1a1a1a] flex items-center justify-center">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#050505] border border-[#151515] flex items-center justify-center">
                   <div
                     className={`w-1 h-1 rounded-full transition-all duration-300 ${
                       wakeDetected
@@ -244,36 +265,34 @@ export function DynamicLakeNotch({
                     }`}
                   />
                 </div>
-                <div className="w-1.5 h-1.5 rounded-full bg-[#111111]" />
+                <div className="w-1.5 h-1.5 rounded-full bg-[#0c0c0c]" />
               </div>
 
-              {/* Audio Equalizer or Right Sensor Dot */}
-              {isPlayingMusic ? (
-                <div className="flex items-center gap-0.5 pr-1" title={`Playing ${musicSource}`}>
-                  <span className="w-0.5 h-2.5 rounded-full animate-bounce bg-neutral-300" />
-                  <span className="w-0.5 h-3.5 rounded-full animate-bounce delay-100 bg-neutral-400" />
-                  <span className="w-0.5 h-2 rounded-full animate-bounce delay-200 bg-neutral-300" />
+              {/* Clean, Flowy Audio Visualizer in Compact Notch */}
+              {activePlaying ? (
+                <div className="flex items-center gap-0.5 pr-1" title="Playing Media">
+                  <span className="w-0.5 h-2.5 rounded-full animate-pulse bg-white/80" />
+                  <span className="w-0.5 h-3.5 rounded-full animate-pulse delay-75 bg-white" />
+                  <span className="w-0.5 h-2 rounded-full animate-pulse delay-150 bg-white/70" />
                 </div>
               ) : (
-                <div className="w-1.5 h-1.5 rounded-full bg-[#141414]" />
+                <div className="w-1.5 h-1.5 rounded-full bg-[#0e0e0e]" />
               )}
             </motion.div>
           ) : (
             /* ============================================================== */
-            /* 2. EXPANDED LIQUID GLASS CARD (Fixed layout width prevents squishing) */
+            /* 2. EXPANDED NOTCH CARD (Chamfered rounded-b-[12px], Pitch Black) */
             /* ============================================================== */
             <motion.div
               key="expanded-notch"
-              initial={{ opacity: 0, scale: 0.96, filter: 'blur(8px)' }}
-              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, scale: 0.95, filter: 'blur(10px)', transition: { duration: 0.12 } }}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-              className="w-[620px] max-w-full flex flex-col gap-3.5 shrink-0 overflow-hidden"
+              className="w-[600px] max-w-full flex flex-col gap-3.5 shrink-0 overflow-hidden bg-black text-white"
             >
-              {/* CATEGORIES BAR: Fluid pill tabs */}
-              <div
-                className="flex items-center justify-between gap-1 w-full p-1 rounded-xl shrink-0 bg-[#080808] border border-[#161616]"
-              >
+              {/* Category Nav Tabs */}
+              <div className="flex items-center justify-between gap-1 w-full p-1 rounded-xl shrink-0 bg-[#0a0a0c] border border-[#1a1a1f]">
                 {CATEGORIES.map((cat) => {
                   const isActive = activeCategory === cat.id;
                   return (
@@ -281,20 +300,14 @@ export function DynamicLakeNotch({
                       key={cat.id}
                       type="button"
                       onClick={() => setActiveCategory(cat.id)}
-                      className={`relative flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold text-center transition-colors duration-200 whitespace-nowrap cursor-pointer ${
-                        isActive
-                          ? isLight ? 'text-slate-900 font-bold' : 'text-white font-semibold'
-                          : isLight ? 'text-slate-700 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
+                      className={`relative flex-1 py-1.5 px-2 rounded-xl text-xs font-medium text-center transition-colors duration-200 cursor-pointer ${
+                        isActive ? 'text-white font-semibold' : 'text-white/50 hover:text-white/80'
                       }`}
                     >
                       {isActive && (
                         <motion.div
-                          layoutId="activeCategoryShadow"
-                          className="absolute inset-0 rounded-xl"
-                          style={{
-                            backgroundColor: isLight ? `${accentColor}44` : `${accentColor}33`,
-                            boxShadow: `inset 0 0 0 1px ${accentColor}aa, 0 4px 12px ${accentColor}25`,
-                          }}
+                          layoutId="activeCategoryTab"
+                          className="absolute inset-0 rounded-xl bg-white/10 shadow-sm border border-white/10"
                           transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                         />
                       )}
@@ -309,23 +322,23 @@ export function DynamicLakeNotch({
                       e.stopPropagation();
                       onOpenSettings();
                     }}
-                    className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
-                    title="Open SEN Settings"
+                    className="p-1.5 rounded-xl text-white/50 hover:text-white hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+                    title="Settings"
                   >
                     <Settings className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
-              {/* CATEGORY ACTIVE VIEW */}
+              {/* Category Body */}
               <div className="w-full shrink-0">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={activeCategory}
-                    initial={{ opacity: 0, y: 6, filter: 'blur(4px)' }}
-                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                    exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
-                    transition={{ duration: 0.16 }}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.15 }}
                   >
                     {activeCategory === 'controls' && (
                       <ControlsCategory accentColor={accentColor} mainColor={mainColor} />
@@ -364,100 +377,92 @@ export function DynamicLakeNotch({
                 </AnimatePresence>
               </div>
 
-              {/* MUSIC PLAYER HUD */}
-              {isPlayingMusic && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0, filter: 'blur(4px)' }}
-                  animate={{ opacity: 1, height: 'auto', filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, height: 0, filter: 'blur(4px)' }}
-                  className={`p-2.5 rounded-2xl border flex flex-col gap-2 overflow-hidden shrink-0 ${
-                    isLight ? 'bg-black/5 border-black/10' : 'bg-white/4 border-white/8'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div
-                        className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: `${accentColor}28` }}
-                      >
-                        <Music className="w-4 h-4" style={{ color: isLight ? '#0f172a' : accentColor }} />
-                      </div>
-                      <div className="min-w-0">
-                        <div className={`font-semibold text-xs truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                          Midnight Focus (Lo-Fi)
+              {/* ACTIVE MUSIC MEDIA HUD */}
+              <div className="p-3 rounded-2xl bg-[#0d0d12] border border-white/10 flex flex-col gap-2.5 overflow-hidden shrink-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    {/* Album Cover Art */}
+                    <div className="w-16 h-16 rounded-2xl bg-black border border-white/10 overflow-hidden flex items-center justify-center shrink-0 relative shadow-md">
+                      {mediaAlbumArt ? (
+                        <img src={mediaAlbumArt} alt="Album Cover" className="w-full h-full object-cover" />
+                      ) : (
+                        <div 
+                          className="w-full h-full flex items-center justify-center"
+                          style={{ backgroundColor: `${accentColor}25` }}
+                        >
+                          <Music className="w-7 h-7" style={{ color: accentColor }} />
                         </div>
-                        <div className={`text-[10px] truncate ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                          Lofi Girl &bull; Study Sessions
-                        </div>
-                      </div>
+                      )}
                     </div>
 
-                    <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] shrink-0 font-semibold ${
-                      isLight ? 'bg-black/5 border-black/10 text-slate-800' : 'bg-black/40 border-white/8 text-slate-300'
-                    }`}>
-                      <span
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{ backgroundColor: isLight ? '#0f172a' : accentColor }}
-                      />
-                      <span>{musicSource}</span>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-sm text-white truncate">
+                        {mediaTitle}
+                      </div>
+                      <div className="text-xs text-white/50 truncate">
+                        {mediaArtist}
+                      </div>
+                      <div className="text-[10px] text-white/30 uppercase tracking-wider mt-0.5 font-medium">
+                        {musicSource}
+                      </div>
                     </div>
                   </div>
+                </div>
 
-                  <div className="space-y-0.5">
-                    <div className={`relative h-1 w-full rounded-full overflow-hidden ${
-                      isLight ? 'bg-black/15' : 'bg-black/50'
-                    }`}>
-                      <div
-                        style={{
-                          width: `${Math.min(100, (trackProgress / 180) * 100)}%`,
-                          backgroundColor: isLight ? '#0f172a' : accentColor,
-                        }}
-                        className="absolute top-0 bottom-0 left-0 rounded-full"
-                      />
-                    </div>
-                    <div className={`flex items-center justify-between text-[9px] font-mono ${
-                      isLight ? 'text-slate-600 font-medium' : 'text-slate-400'
-                    }`}>
-                      <span>{formatSecs(trackProgress)}</span>
-                      <span>3:00</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-center gap-4">
-                    <button
-                      type="button"
-                      className={`p-1 transition-colors ${
-                        isLight ? 'text-slate-700 hover:text-slate-900' : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <SkipBack className="w-3.5 h-3.5 fill-current" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={onToggleMusic}
+                {/* Track Time Scrubber */}
+                <div className="space-y-1">
+                  <div className="relative h-1 w-full rounded-full bg-white/10 overflow-hidden cursor-pointer">
+                    <div
                       style={{
-                        backgroundColor: isLight ? '#0f172a' : accentColor,
-                        color: isLight ? '#ffffff' : '#000000',
+                        width: `${Math.min(100, (trackProgress / 210) * 100)}%`,
+                        backgroundColor: accentColor,
                       }}
-                      className="w-7 h-7 rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-sm"
-                    >
-                      <Pause className="w-3.5 h-3.5 fill-current" />
-                    </button>
-                    <button
-                      type="button"
-                      className={`p-1 transition-colors ${
-                        isLight ? 'text-slate-700 hover:text-slate-900' : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <SkipForward className="w-3.5 h-3.5 fill-current" />
-                    </button>
+                      className="absolute top-0 bottom-0 left-0 rounded-full transition-all duration-300"
+                    />
                   </div>
-                </motion.div>
-              )}
+                  <div className="flex items-center justify-between text-[10px] text-white/40 font-mono">
+                    <span>{formatSecs(trackProgress)}</span>
+                    <span>3:30</span>
+                  </div>
+                </div>
 
-              {/* CONVERSATION HISTORY */}
+                {/* Active Playback Controls */}
+                <div className="flex items-center justify-center gap-5 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setTrackProgress(0)}
+                    className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
+                    title="Previous"
+                  >
+                    <SkipBack className="w-4 h-4 fill-current" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onToggleMusic}
+                    style={{ backgroundColor: accentColor }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-black hover:scale-105 active:scale-95 transition-all shadow-md cursor-pointer"
+                    title={activePlaying ? "Pause" : "Play"}
+                  >
+                    {activePlaying ? (
+                      <Pause className="w-4 h-4 fill-current" />
+                    ) : (
+                      <Play className="w-4 h-4 fill-current ml-0.5" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTrackProgress((p) => Math.min(210, p + 30))}
+                    className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
+                    title="Next"
+                  >
+                    <SkipForward className="w-4 h-4 fill-current" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Chat Messages */}
               {messages.length > 0 && (
-                <div className="max-h-[140px] overflow-y-auto space-y-2 pr-1 text-xs shrink-0">
+                <div className="max-h-[130px] overflow-y-auto space-y-2 pr-1 text-xs shrink-0">
                   {messages.slice(-3).map((msg) => (
                     <div
                       key={msg.id}
@@ -468,28 +473,19 @@ export function DynamicLakeNotch({
                       <div
                         className={`p-2.5 rounded-2xl max-w-[90%] leading-relaxed ${
                           msg.role === 'user'
-                            ? isLight ? 'text-slate-900 font-semibold' : 'text-white font-medium'
-                            : isLight
-                            ? 'bg-black/5 border border-black/10 text-slate-900 font-medium'
-                            : 'bg-white/6 border border-white/10 text-slate-200'
+                            ? 'text-white font-medium bg-white/10 border border-white/15'
+                            : 'bg-white/5 border border-white/10 text-slate-200'
                         }`}
-                        style={
-                          msg.role === 'user'
-                            ? { backgroundColor: isLight ? `${accentColor}44` : `${accentColor}33`, boxShadow: `inset 0 0 0 1px ${accentColor}aa` }
-                            : {}
-                        }
                       >
                         {msg.content && <div>{msg.content}</div>}
 
                         {msg.actions && msg.actions.length > 0 && (
-                          <div className={`mt-1.5 pt-1.5 border-t space-y-1 ${
-                            isLight ? 'border-black/10' : 'border-white/10'
-                          }`}>
+                          <div className="mt-1.5 pt-1.5 border-t border-white/10 space-y-1">
                             {msg.actions.map((act, i) => (
                               <div key={i} className="text-[11px]">
                                 {act.type === 'calendar' && (
                                   <div className="space-y-1">
-                                    <div className="font-semibold flex items-center gap-1.5" style={{ color: isLight ? '#0f172a' : accentColor }}>
+                                    <div className="font-semibold flex items-center gap-1.5 text-white">
                                       <Calendar className="w-3 h-3" />
                                       <span>Scheduled: {act.data.title}</span>
                                     </div>
@@ -498,8 +494,7 @@ export function DynamicLakeNotch({
                                         href={act.data.googleCalendarUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        style={{ backgroundColor: `${accentColor}33`, color: isLight ? '#0f172a' : accentColor }}
-                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors"
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/10 text-white hover:bg-white/20 transition-colors"
                                       >
                                         <span>Add to Google Calendar</span>
                                         <ExternalLink className="w-2.5 h-2.5" />
@@ -508,13 +503,13 @@ export function DynamicLakeNotch({
                                   </div>
                                 )}
                                 {act.type === 'timer' && (
-                                  <div style={{ color: isLight ? '#0f172a' : accentColor }} className="font-semibold">
-                                    ⏱ Timer set for {act.data.durationMinutes} min
+                                  <div className="font-medium text-white/80">
+                                    Timer set for {act.data.durationMinutes} min
                                   </div>
                                 )}
                                 {act.type === 'app' && (
-                                  <div style={{ color: isLight ? '#0f172a' : accentColor }} className="font-semibold">
-                                    🚀 Launched {act.data.appName}
+                                  <div className="font-medium text-white/80">
+                                    Launched {act.data.appName}
                                   </div>
                                 )}
                               </div>
@@ -526,40 +521,32 @@ export function DynamicLakeNotch({
                   ))}
 
                   {isLoading && (
-                    <div className={`flex items-center gap-2 p-2 rounded-xl text-xs ${
-                      isLight ? 'bg-black/5 text-slate-700 font-semibold' : 'bg-white/4 text-slate-400'
-                    }`}>
+                    <div className="flex items-center gap-2 p-2 rounded-xl text-xs bg-white/5 text-white/70">
                       <div
                         className="w-2 h-2 rounded-full animate-ping"
-                        style={{ backgroundColor: isLight ? '#0f172a' : accentColor }}
+                        style={{ backgroundColor: accentColor }}
                       />
-                      <span>Sen is thinking...</span>
+                      <span>SEN is thinking...</span>
                     </div>
                   )}
                   <div ref={chatBottomRef} />
                 </div>
               )}
 
-              {/* CORE INPUT FIELD */}
+              {/* Chat Input Bar */}
               <form onSubmit={handleSubmit} className="flex items-center gap-2 pt-0.5 shrink-0">
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Ask Sen..."
-                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-[#1a1a1a] bg-[#080808] text-white placeholder-neutral-500 focus:outline-none transition-all font-medium"
-                    style={{
-                      boxShadow: inputText ? `inset 0 0 0 1px ${accentColor}aa` : undefined,
-                    }}
-                    autoFocus
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  placeholder="Ask SEN AI..."
+                  className="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-white/10 bg-[#0a0a0e] text-white placeholder-white/30 focus:outline-none focus:border-white/30 transition-all font-medium"
+                />
                 <button
                   type="submit"
                   disabled={isLoading || !inputText.trim()}
-                  className="p-2.5 hover:opacity-90 disabled:opacity-30 rounded-2xl transition-transform active:scale-95 shrink-0 shadow-xs"
-                  style={{ backgroundColor: isLight ? accentColor : accentColor, color: isLight ? '#ffffff' : '#000000' }}
+                  className="p-2.5 hover:opacity-90 disabled:opacity-30 rounded-xl text-black transition-all active:scale-95 shrink-0 shadow-md cursor-pointer"
+                  style={{ backgroundColor: accentColor }}
                 >
                   <Send className="w-3.5 h-3.5 fill-current" />
                 </button>
@@ -567,10 +554,8 @@ export function DynamicLakeNotch({
                   <button
                     type="button"
                     onClick={onClearChat}
-                    className={`p-2 transition-colors ${
-                      isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
-                    }`}
-                    title="Clear conversation"
+                    className="p-2 text-white/40 hover:text-white transition-colors cursor-pointer"
+                    title="Clear history"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                   </button>
