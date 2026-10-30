@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Send,
@@ -71,52 +71,58 @@ export function DynamicLakeNotch({
   onAddCustomApp,
 }: DynamicLakeNotchProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [activeCategory, setActiveCategory] = useState<CategoryTab>('controls');
   const [inputText, setInputText] = useState('');
   const [trackProgress, setTrackProgress] = useState(45);
 
   const notchRef = useRef<HTMLDivElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const transitionTimerRef = useRef<any>(null);
 
-  // Auto-expand notch when "Hey Sen" is detected via microphone
+  const setExpandedWithMotion = useCallback((target: boolean | ((prev: boolean) => boolean)) => {
+    setIsTransitioning(true);
+    setIsExpanded((prev) => {
+      const next = typeof target === 'function' ? target(prev) : target;
+      return next;
+    });
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    transitionTimerRef.current = setTimeout(() => {
+      setIsTransitioning(false);
+    }, 280);
+  }, []);
+
+  // Auto expand on wake word
   useEffect(() => {
-    if (wakeDetected) {
-      setIsExpanded(true);
+    if (wakeDetected && !isExpanded) {
+      setExpandedWithMotion(true);
     }
-  }, [wakeDetected]);
+  }, [wakeDetected, isExpanded, setExpandedWithMotion]);
 
-  // Click outside or scroll anywhere else makes AI turn back into notch
+  // Click outside listener
   useEffect(() => {
-    if (!isExpanded) return;
-
-    const handlePointerDown = (e: PointerEvent) => {
-      if (notchRef.current && !notchRef.current.contains(e.target as Node)) {
-        setIsExpanded(false);
+    function handleClickOutside(event: MouseEvent) {
+      if (notchRef.current && !notchRef.current.contains(event.target as Node)) {
+        setExpandedWithMotion(false);
       }
-    };
+    }
+    if (isExpanded) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isExpanded, setExpandedWithMotion]);
 
-    const handleWheel = (e: WheelEvent) => {
-      if (notchRef.current && !notchRef.current.contains(e.target as Node)) {
-        setIsExpanded(false);
+  // Global hotkey Ctrl+Shift+Space to toggle
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.ctrlKey && e.shiftKey && e.code === 'Space') {
+        e.preventDefault();
+        setExpandedWithMotion((prev) => !prev);
       }
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setIsExpanded(false);
-      }
-    };
-
-    window.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('wheel', handleWheel, { passive: true });
+    }
     window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isExpanded]);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setExpandedWithMotion]);
 
   // Track progress when music is on
   useEffect(() => {
@@ -158,12 +164,12 @@ export function DynamicLakeNotch({
     return (r * 299 + g * 587 + b * 114) / 1000 > 150;
   })();
 
-  // Liquid Spring Physics parameters mimicking macOS Dynamic Island
+  // Apple-grade Liquid Spring Physics parameters (smooth, low-mass, non-clunky)
   const liquidSpring = {
     type: 'spring' as const,
-    stiffness: 220,
+    stiffness: 240,
     damping: 26,
-    mass: 0.75,
+    mass: 0.7,
   };
 
   return (
@@ -175,38 +181,23 @@ export function DynamicLakeNotch({
         layout
         transition={liquidSpring}
         style={{
-          backgroundColor: isExpanded
-            ? isLight ? `${mainColor}f8` : `${mainColor}f4`
-            : `${mainColor}f0`,
-          borderColor: isExpanded
-            ? isLight ? 'rgba(0,0,0,0.15)' : `${accentColor}55`
-            : `${accentColor}38`,
+          backgroundColor: '#000000',
+          borderColor: '#000000',
           boxShadow: isExpanded
-            ? isLight
-              ? '0 24px 60px -10px rgba(0,0,0,0.15), inset 0 1px 2px rgba(255,255,255,0.8)'
-              : `0 30px 80px -12px rgba(0,0,0,0.9), 0 0 40px -5px ${accentColor}35, inset 0 1px 1px rgba(255,255,255,0.2)`
-            : `0 8px 24px -4px rgba(0,0,0,0.6), 0 0 16px -2px ${accentColor}25`,
+            ? '0 32px 80px -8px rgba(0, 0, 0, 0.98)'
+            : '0 2px 6px rgba(0, 0, 0, 0.95)',
+          filter: isTransitioning ? 'blur(1.5px)' : 'none',
+          willChange: 'transform, filter, border-radius',
         }}
-        className={`relative flex backdrop-blur-3xl border-b border-x overflow-hidden transition-colors duration-300 ${
-          isLight ? 'text-slate-900 shadow-slate-300/40' : 'text-slate-100'
-        } ${
+        className={`relative flex backdrop-blur-3xl overflow-hidden border-none transition-[filter,border-radius] duration-250 ease-out text-slate-100 bg-black ${
           isExpanded
-            ? 'w-[660px] max-w-[96vw] rounded-b-[32px] p-5 flex-col gap-3.5'
-            : 'w-[180px] h-[32px] rounded-b-2xl px-3 py-1 flex items-center justify-between cursor-pointer hover:border-neutral-500'
+            ? 'w-[660px] max-w-[96vw] rounded-b-[18px] p-5 flex-col gap-3.5'
+            : 'w-[180px] h-[32px] rounded-b-[9px] px-3 py-1 flex items-center justify-between cursor-pointer'
         }`}
         onClick={() => {
-          if (!isExpanded) setIsExpanded(true);
+          if (!isExpanded) setExpandedWithMotion(true);
         }}
       >
-        {/* Specular Liquid Glass Top Refraction Line */}
-        <div
-          className="absolute top-0 left-0 right-0 h-[1px] pointer-events-none opacity-60 z-20"
-          style={{
-            background: isLight
-              ? 'linear-gradient(90deg, transparent, rgba(0,0,0,0.2), transparent)'
-              : `linear-gradient(90deg, transparent, ${accentColor}aa, transparent)`,
-          }}
-        />
 
         <AnimatePresence mode="popLayout" initial={false}>
           {!isExpanded ? (
@@ -224,39 +215,29 @@ export function DynamicLakeNotch({
             >
               {/* Center camera aperture lens & microphone indicator */}
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#0a0a0a] border border-[#222] flex items-center justify-center">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#070707] border border-[#1a1a1a] flex items-center justify-center">
                   <div
                     className={`w-1 h-1 rounded-full transition-all duration-300 ${
                       wakeDetected
-                        ? 'scale-150 animate-ping'
+                        ? 'scale-150 animate-ping bg-white'
                         : isListening
-                        ? 'opacity-100'
-                        : 'opacity-40'
+                        ? 'opacity-80 bg-neutral-400'
+                        : 'opacity-30 bg-neutral-600'
                     }`}
-                    style={{ backgroundColor: accentColor }}
                   />
                 </div>
-                <div className="w-1.5 h-1.5 rounded-full bg-[#0d0d0d]" />
+                <div className="w-1.5 h-1.5 rounded-full bg-[#111111]" />
               </div>
 
               {/* Audio Equalizer or Right Sensor Dot */}
               {isPlayingMusic ? (
                 <div className="flex items-center gap-0.5 pr-1" title={`Playing ${musicSource}`}>
-                  <span
-                    className="w-0.5 h-2.5 rounded-full animate-bounce"
-                    style={{ backgroundColor: accentColor }}
-                  />
-                  <span
-                    className="w-0.5 h-3.5 rounded-full animate-bounce delay-100"
-                    style={{ backgroundColor: accentColor }}
-                  />
-                  <span
-                    className="w-0.5 h-2 rounded-full animate-bounce delay-200"
-                    style={{ backgroundColor: accentColor }}
-                  />
+                  <span className="w-0.5 h-2.5 rounded-full animate-bounce bg-neutral-300" />
+                  <span className="w-0.5 h-3.5 rounded-full animate-bounce delay-100 bg-neutral-400" />
+                  <span className="w-0.5 h-2 rounded-full animate-bounce delay-200 bg-neutral-300" />
                 </div>
               ) : (
-                <div className="w-1.5 h-1.5 rounded-full bg-[#121212]" />
+                <div className="w-1.5 h-1.5 rounded-full bg-[#141414]" />
               )}
             </motion.div>
           ) : (
@@ -273,11 +254,7 @@ export function DynamicLakeNotch({
             >
               {/* CATEGORIES BAR: Fluid pill tabs */}
               <div
-                className="flex items-center justify-between w-full p-1 rounded-2xl border shrink-0"
-                style={{
-                  backgroundColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.45)',
-                  borderColor: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)',
-                }}
+                className="flex items-center justify-between w-full p-1 rounded-xl shrink-0 bg-[#080808] border border-[#161616]"
               >
                 {CATEGORIES.map((cat) => {
                   const isActive = activeCategory === cat.id;
@@ -540,11 +517,7 @@ export function DynamicLakeNotch({
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     placeholder="Ask Sen..."
-                    className={`w-full text-xs px-3.5 py-2.5 rounded-2xl border focus:outline-none backdrop-blur-2xl transition-all font-medium ${
-                      isLight
-                        ? 'bg-black/5 text-slate-900 placeholder-slate-500 border-black/15'
-                        : 'bg-white/6 text-slate-100 placeholder-slate-400 border-white/10'
-                    }`}
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-[#1a1a1a] bg-[#080808] text-white placeholder-neutral-500 focus:outline-none transition-all font-medium"
                     style={{
                       boxShadow: inputText ? `inset 0 0 0 1px ${accentColor}aa` : undefined,
                     }}

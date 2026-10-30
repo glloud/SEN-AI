@@ -51,26 +51,18 @@ export function useVoiceWake({ onWake, enabled = true }: VoiceWakeOptions) {
           const text = event.results[i][0].transcript.toLowerCase().trim();
           currentTranscript += text;
 
-          // Check for wake words: "hey sen", "sen", "listen sen"
-          if (
-            text.includes('hey sen') ||
-            text.includes('hi sen') ||
-            text.includes('hello sen') ||
-            text.startsWith('sen ') ||
-            text === 'sen'
-          ) {
+          // Check for wake words: "hey sen", "hello sen", "hi sen", "sen"
+          const wakeMatch = text.match(/\b(hey\s+sen|hello\s+sen|hi\s+sen|sen)\b(.*)/i);
+          if (wakeMatch) {
             setWakeDetected(true);
             setTimeout(() => setWakeDetected(false), 3000);
 
-            // Extract prompt following the wake word if any
-            let cleanQuery = text
-              .replace(/hey sen/gi, '')
-              .replace(/hi sen/gi, '')
-              .replace(/hello sen/gi, '')
-              .replace(/^sen\s*/gi, '')
+            // Extract prompt following the wake word
+            const trailing = (wakeMatch[2] || '')
+              .replace(/^[,.!?\s]+/, '')
               .trim();
 
-            onWake(cleanQuery || undefined);
+            onWake(trailing || undefined);
           }
         }
         setTranscript(currentTranscript);

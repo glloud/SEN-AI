@@ -37,7 +37,7 @@ interface WindowsSystemTrayProps {
 }
 
 const PRESET_THEMES = [
-  // DARK LIQUID GLASS THEMES
+  // 100% DARK & OLED LIQUID GLASS THEMES
   { name: 'Obsidian Cyan (Dark)', main: '#0a0a0c', accent: '#06b6d4', type: 'dark', desc: 'Apple Liquid Glass Dark' },
   { name: 'Deep Space Blue (Dark)', main: '#0b1120', accent: '#3b82f6', type: 'dark', desc: 'macOS Tahoe Slate' },
   { name: 'Midnight OLED (Dark)', main: '#000000', accent: '#38bdf8', type: 'dark', desc: 'Pure Pitch Black Refraction' },
@@ -46,14 +46,10 @@ const PRESET_THEMES = [
   { name: 'Amethyst Night (Dark)', main: '#120c1d', accent: '#a855f7', type: 'dark', desc: 'Nebula Violet Glass' },
   { name: 'Sakura Rose (Dark)', main: '#1a0c16', accent: '#f43f5e', type: 'dark', desc: 'Rose Liquid Glass' },
   { name: 'Steel Titanium (Dark)', main: '#18181b', accent: '#0284c7', type: 'dark', desc: 'Apple Steel Finish' },
-
-  // LIGHT LIQUID GLASS THEMES
-  { name: 'Pure Crystal Ice (Light)', main: '#f8fafc', accent: '#0284c7', type: 'light', desc: 'Apple Crystal Refraction' },
-  { name: 'Chalk Pearl (Light)', main: '#f1f5f9', accent: '#2563eb', type: 'light', desc: 'One UI Soft Milk Glass' },
-  { name: 'Linen Sunset (Light)', main: '#fef3c7', accent: '#d97706', type: 'light', desc: 'Warm Golden Amber' },
-  { name: 'Emerald Oasis (Light)', main: '#ecfdf5', accent: '#059669', type: 'light', desc: 'Fresh Mint Liquid' },
-  { name: 'Lavender Mist (Light)', main: '#f3e8ff', accent: '#7c3aed', type: 'light', desc: 'Silky Lilac Crystal' },
-  { name: 'Rose Quartz (Light)', main: '#fff1f2', accent: '#e11d48', type: 'light', desc: 'Soft Blushed Glass' },
+  { name: 'Matrix Neon (Dark)', main: '#050d08', accent: '#22c55e', type: 'dark', desc: 'Deep Terminal Emerald' },
+  { name: 'Crimson Eclipse (Dark)', main: '#170709', accent: '#ef4444', type: 'dark', desc: 'OLED Ruby Shimmer' },
+  { name: 'Ultraviolet Glow (Dark)', main: '#0c0618', accent: '#8b5cf6', type: 'dark', desc: 'Deep Space Purple' },
+  { name: 'Solar Amber (Dark)', main: '#160d04', accent: '#f97316', type: 'dark', desc: 'Warm Solar Flare' },
 ];
 
 const PRESET_FONTS = [
@@ -581,7 +577,7 @@ export function WindowsSystemTray({
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className={`text-[11px] font-bold block ${isLight ? 'text-slate-900' : 'text-slate-300'}`}>
-                        Curated Liquid Glass Presets (Light &amp; Dark)
+                        Curated Liquid Glass Presets (Dark &amp; OLED Only)
                       </label>
                     </div>
                     <div className="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">

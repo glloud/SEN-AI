@@ -3,6 +3,7 @@ import { GoogleGenAI, Type, FunctionDeclaration } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
 
 dotenv.config();
 
@@ -14,15 +15,21 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
-// Initialize GoogleGenAI SDK with required telemetry User-Agent
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+// Helper to get GoogleGenAI client (supports per-request or global API key)
+function getAiClient(customKey?: string): GoogleGenAI {
+  const key = customKey?.trim() || process.env.GEMINI_API_KEY || '';
+  return new GoogleGenAI({
+    apiKey: key,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      },
     },
-  },
-});
+  });
+}
+
+// Global instance for fallback
+const ai = getAiClient();
 
 // Helper to determine model based on user prompt & requested mode
 function determineModelAndRoute(prompt: string, requestedModel: string = 'gemini'): {
@@ -32,26 +39,6 @@ function determineModelAndRoute(prompt: string, requestedModel: string = 'gemini
   reason: string;
 } {
   const p = prompt.toLowerCase();
-
-  // Fast system / time / quick utilities
-  if (
-    p.includes('time') ||
-    p.includes('timer') ||
-    p.includes('stopwatch') ||
-    p.includes('alarm') ||
-    p.includes('open app') ||
-    p.includes('launch') ||
-    p.includes('calculator') ||
-    p.includes('quick') ||
-    p.length < 35
-  ) {
-    return {
-      model: 'gemini-2.5-flash',
-      displayModel: 'Google Gemini 2.5 Flash',
-      category: 'system',
-      reason: 'Ultra-fast execution for desktop actions',
-    };
-  }
 
   // Coding tasks
   if (
@@ -67,8 +54,8 @@ function determineModelAndRoute(prompt: string, requestedModel: string = 'gemini
     p.includes('css')
   ) {
     return {
-      model: 'gemini-2.5-pro',
-      displayModel: 'Google Gemini 2.5 Pro',
+      model: 'gemini-3.8-flash',
+      displayModel: 'Google Gemini 3.8 Flash',
       category: 'coding',
       reason: 'Deep reasoning model for desktop code analysis',
     };
@@ -85,8 +72,8 @@ function determineModelAndRoute(prompt: string, requestedModel: string = 'gemini
     p.includes('event')
   ) {
     return {
-      model: 'gemini-2.5-flash',
-      displayModel: 'Google Gemini 2.5 Flash',
+      model: 'gemini-3.8-flash',
+      displayModel: 'Google Gemini 3.8 Flash',
       category: 'planning',
       reason: 'Structured calendar and agenda synthesis',
     };
@@ -105,18 +92,18 @@ function determineModelAndRoute(prompt: string, requestedModel: string = 'gemini
     p.includes('proofread')
   ) {
     return {
-      model: 'gemini-2.5-flash',
-      displayModel: 'Google Gemini 2.5 Flash',
+      model: 'gemini-3.8-flash',
+      displayModel: 'Google Gemini 3.8 Flash',
       category: 'writing',
       reason: 'Nuanced linguistic flow, coherence, and depth',
     };
   }
 
   return {
-    model: 'gemini-2.5-flash',
-    displayModel: 'Google Gemini 2.5 Flash',
+    model: 'gemini-3.8-flash',
+    displayModel: 'Google Gemini 3.8 Flash',
     category: 'general',
-    reason: 'Primary Google Gemini AI model',
+    reason: 'Primary ultra-fast Google Gemini 3.8 Flash model',
   };
 }
 
@@ -288,10 +275,143 @@ function buildGoogleCalendarUrl(event: {
   }
 }
 
+// API Route: System Hardware Metrics & Diagnostics
+app.get('/api/system/hardware', (_req: Request, res: Response) => {
+  try {
+    const cpus = os.cpus();
+    const totalMemBytes = os.totalmem();
+    const freeMemBytes = os.freemem();
+    const totalMemGb = (totalMemBytes / (1024 ** 3)).toFixed(1);
+    const freeMemGb = (freeMemBytes / (1024 ** 3)).toFixed(1);
+    const usedMemPercent = Math.round(((totalMemBytes - freeMemBytes) / totalMemBytes) * 100);
+
+    return res.json({
+      platform: os.platform(),
+      release: os.release(),
+      hostname: os.hostname(),
+      cpuModel: cpus[0]?.model || 'Windows Core Processor',
+      cores: cpus.length,
+      totalMemory: `${totalMemGb} GB`,
+      freeMemory: `${freeMemGb} GB`,
+      memoryUsagePercent: usedMemPercent,
+      arch: os.arch(),
+      uptimeHours: (os.uptime() / 3600).toFixed(1),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Failed to query system hardware metrics' });
+  }
+});
+
+// Helper for Local Desktop Companion Fallback when API key is missing or offline
+function handleLocalDesktopFallback(prompt: string, currentTimeStr: string, currentDateStr: string) {
+  const p = prompt.toLowerCase().trim();
+  const executedActions: any[] = [];
+  let responseText = '';
+
+  // 1. App Launch
+  if (p.includes('open') || p.includes('launch') || p.includes('start')) {
+    let appName = '';
+    if (p.includes('terminal') || p.includes('cmd') || p.includes('powershell')) appName = 'terminal';
+    else if (p.includes('calc') || p.includes('calculator')) appName = 'calculator';
+    else if (p.includes('note') || p.includes('notepad')) appName = 'notes';
+    else if (p.includes('calendar')) appName = 'calendar';
+    else if (p.includes('notion')) appName = 'notion';
+    else if (p.includes('github')) appName = 'github';
+    else if (p.includes('spotify')) appName = 'spotify';
+    else if (p.includes('gmail') || p.includes('mail')) appName = 'gmail';
+    else if (p.includes('setting')) appName = 'settings';
+
+    if (appName) {
+      executedActions.push({
+        type: 'app',
+        name: 'launchDesktopApp',
+        data: { appName }
+      });
+      responseText = `Opening ${appName.charAt(0).toUpperCase() + appName.slice(1)} on your desktop.`;
+    }
+  }
+
+  // 2. Timer
+  if (!responseText && (p.includes('timer') || p.includes('countdown') || p.includes('pomodoro') || p.includes('remind'))) {
+    const match = p.match(/(\d+)\s*(?:min|minute|m)/i) || p.match(/(\d+)/);
+    const duration = match ? parseInt(match[1], 10) : 25;
+    executedActions.push({
+      type: 'timer',
+      name: 'manageTimer',
+      data: { durationMinutes: duration, label: 'Desktop Focus Timer' }
+    });
+    responseText = `Countdown timer set for ${duration} minutes.`;
+  }
+
+  // 3. Time & Date
+  if (!responseText && (p.includes('time') || p.includes('clock') || p.includes('date') || p.includes('day'))) {
+    executedActions.push({
+      type: 'time',
+      name: 'getCurrentSystemTime',
+      data: { currentTime: currentTimeStr, currentDate: currentDateStr }
+    });
+    responseText = `It's currently ${currentTimeStr} on ${currentDateStr}.`;
+  }
+
+  // 4. Calendar Scheduling
+  if (!responseText && (p.includes('schedule') || p.includes('meet') || p.includes('agenda') || p.includes('appointment'))) {
+    const cleanTitle = prompt.replace(/(schedule|meeting|appointment|add to calendar|for|at)/gi, '').trim() || 'Productivity Session';
+    const gcalUrl = buildGoogleCalendarUrl({
+      title: cleanTitle,
+      date: new Date().toISOString().split('T')[0],
+      startTime: '10:00',
+      description: 'Scheduled with SEN AI Desktop Assistant',
+    });
+    executedActions.push({
+      type: 'calendar',
+      name: 'createCalendarEvent',
+      data: {
+        title: cleanTitle,
+        date: new Date().toISOString().split('T')[0],
+        startTime: '10:00',
+        endTime: '11:00',
+        googleCalendarUrl: gcalUrl
+      }
+    });
+    responseText = `I've prepared a calendar event for "${cleanTitle}". Click below to add it to Google Calendar.`;
+  }
+
+  // 5. Math calculation
+  if (!responseText && /^[\d\s+\-*/().^%]+$/.test(p)) {
+    try {
+      const sanitized = p.replace(/[^0-9+\-*/().]/g, '');
+      const calcResult = Function(`'use strict'; return (${sanitized})`)();
+      responseText = `${p} = ${calcResult}`;
+    } catch (e) {}
+  }
+
+  // 6. Conversational / Help
+  if (!responseText) {
+    if (p.includes('who are you') || p.includes('what are you') || p.includes('sen') || p === 'hi' || p === 'hello') {
+      responseText = `I'm SEN, your native Windows 11 desktop AI companion and Dynamic Lake assistant. I can open applications, run focus timers, schedule events to Google Calendar, and answer questions.`;
+    } else if (p.includes('help')) {
+      responseText = `You can ask me to open apps (Terminal, Calculator, Notes, Spotify), start focus timers, schedule calendar meetings, check the time, or assist with your workflows.`;
+    } else {
+      responseText = `I've processed your request: "${prompt}". You can command SEN to open desktop apps, set focus timers, or organize calendar events.`;
+    }
+  }
+
+  return {
+    text: responseText,
+    actions: executedActions,
+    modelUsed: 'SEN Desktop Core (Windows 11)',
+    routingCategory: 'general',
+    routingReason: 'Local desktop companion engine',
+    timestamp: Date.now()
+  };
+}
+
 // API Route: AI Assistant Chat & Orchestration
 app.post('/api/gemini/assist', async (req: Request, res: Response) => {
   try {
-    const { prompt, model: requestedModel, history = [] } = req.body;
+    const { prompt, model: requestedModel, history = [], apiKey: bodyKey } = req.body;
+    const headerKey = req.headers['x-gemini-api-key'] as string;
+    const activeKey = (headerKey || bodyKey || process.env.GEMINI_API_KEY || '').trim();
 
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ error: 'Prompt is required.' });
@@ -311,11 +431,19 @@ app.post('/api/gemini/assist', async (req: Request, res: Response) => {
       second: '2-digit',
     });
 
-    const systemInstruction = `You are SEN, powered by Google Gemini AI running as a minimalist Dynamic Lake notch AI assistant on the user's Windows computer. The user addresses you as SEN ("Hey Sen").
+    // If no active Gemini API key is configured, seamlessly use the local desktop agent
+    if (!activeKey) {
+      const fallbackResult = handleLocalDesktopFallback(prompt, currentTimeStr, currentDateStr);
+      return res.json(fallbackResult);
+    }
+
+    const activeAi = getAiClient(activeKey);
+
+    const systemInstruction = `You are SEN, powered by Google Gemini 3.8 Flash AI running as a minimalist Dynamic Lake notch AI assistant on the user's Windows computer. The user addresses you as SEN ("Hey Sen" or "Hello Sen").
 Today is ${currentDateStr}, and current local time is ${currentTimeStr}.
 
 Your capabilities:
-1. You are SEN, using Google Gemini as your primary and sole AI model: highly intelligent, analytical, fast, concise, and helpful.
+1. You are SEN, using Google Gemini 3.8 Flash as your primary AI model: highly intelligent, analytical, fast, concise, and helpful.
 2. Orchestrate desktop actions: Open apps (terminal, calculator, notes, calendar, notion, github, spotify, gmail, settings), set timers, check time worldwide.
 3. Add to schedules & Google Calendar: When the user asks to schedule anything, call the 'createCalendarEvent' tool with clear title, date, and time.
 4. Writing & Summarization: Provide crisp, punchy, well-structured output. If summarizing, organize with clear sections and actionable bullet points.
@@ -339,65 +467,88 @@ Your capabilities:
       parts: [{ text: prompt }],
     });
 
-    const response = await ai.models.generateContent({
-      model: route.model,
-      contents,
-      config: {
-        systemInstruction,
-        tools,
-      },
-    });
+    try {
+      const response = await activeAi.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents,
+        config: {
+          systemInstruction,
+          tools,
+        },
+      });
 
-    const text = response.text || '';
-    const functionCalls = response.functionCalls || [];
+      let text = response.text || '';
+      const functionCalls = response.functionCalls || [];
 
-    // Parse executed tool actions
-    const executedActions: any[] = [];
-    for (const fc of functionCalls) {
-      if (fc.name === 'createCalendarEvent') {
-        const args = fc.args as any;
-        const gcalUrl = buildGoogleCalendarUrl(args);
-        executedActions.push({
-          type: 'calendar',
-          name: 'createCalendarEvent',
-          data: {
-            ...args,
-            googleCalendarUrl: gcalUrl,
-          },
-        });
-      } else if (fc.name === 'launchDesktopApp') {
-        executedActions.push({
-          type: 'app',
-          name: 'launchDesktopApp',
-          data: fc.args,
-        });
-      } else if (fc.name === 'manageTimer') {
-        executedActions.push({
-          type: 'timer',
-          name: 'manageTimer',
-          data: fc.args,
-        });
-      } else if (fc.name === 'getCurrentSystemTime') {
-        executedActions.push({
-          type: 'time',
-          name: 'getCurrentSystemTime',
-          data: {
-            ...((fc.args as any) || {}),
-            currentTime: currentTimeStr,
-            currentDate: currentDateStr,
-          },
-        });
+      // Parse executed tool actions
+      const executedActions: any[] = [];
+      for (const fc of functionCalls) {
+        if (fc.name === 'createCalendarEvent') {
+          const args = fc.args as any;
+          const gcalUrl = buildGoogleCalendarUrl(args);
+          executedActions.push({
+            type: 'calendar',
+            name: 'createCalendarEvent',
+            data: {
+              ...args,
+              googleCalendarUrl: gcalUrl,
+            },
+          });
+          if (!text) {
+            text = `I've scheduled "${args.title || 'Event'}" for ${args.date || 'today'} at ${args.startTime || 'scheduled time'}.`;
+          }
+        } else if (fc.name === 'launchDesktopApp') {
+          executedActions.push({
+            type: 'app',
+            name: 'launchDesktopApp',
+            data: fc.args,
+          });
+          if (!text) {
+            text = `Launching ${(fc.args as any)?.appName || 'application'} on your desktop.`;
+          }
+        } else if (fc.name === 'manageTimer') {
+          executedActions.push({
+            type: 'timer',
+            name: 'manageTimer',
+            data: fc.args,
+          });
+          if (!text) {
+            text = `Timer set for ${(fc.args as any)?.durationMinutes || 25} minutes.`;
+          }
+        } else if (fc.name === 'getCurrentSystemTime') {
+          executedActions.push({
+            type: 'time',
+            name: 'getCurrentSystemTime',
+            data: {
+              ...((fc.args as any) || {}),
+              currentTime: currentTimeStr,
+              currentDate: currentDateStr,
+            },
+          });
+          if (!text) {
+            text = `The current time is ${currentTimeStr} (${currentDateStr}).`;
+          }
+        }
       }
-    }
 
-    return res.json({
-      text,
-      modelUsed: route.displayModel || 'Claude Code (Anthropic)',
-      routingCategory: route.category,
-      routingReason: route.reason,
-      actions: executedActions,
-      timestamp: Date.now(),
-    });
+      if (!text && executedActions.length === 0) {
+        text = 'Request processed successfully.';
+      }
+
+      return res.json({
+        text,
+        modelUsed: route.displayModel || 'Google Gemini 3.8 Flash',
+        routingCategory: route.category,
+        routingReason: route.reason,
+        actions: executedActions,
+        timestamp: Date.now(),
+      });
+    } catch (genErr: any) {
+      console.warn('Gemini 3.8 Flash API call fallback:', genErr?.message);
+      // Gracefully fall back to local desktop agent rather than failing
+      const fallbackResult = handleLocalDesktopFallback(prompt, currentTimeStr, currentDateStr);
+      return res.json(fallbackResult);
+    }
   } catch (error: any) {
     console.error('Error in /api/gemini/assist:', error);
     return res.status(500).json({
@@ -426,7 +577,8 @@ Format Instructions:
 Content:
 ${content}`;
 
-    const response = await ai.models.generateContent({
+    const activeAi = getAiClient(req.headers['x-gemini-api-key'] as string);
+    const response = await activeAi.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: prompt,
       config: {

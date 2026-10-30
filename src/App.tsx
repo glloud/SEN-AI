@@ -15,12 +15,25 @@ import { Lock, Power, RotateCcw } from 'lucide-react';
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel] = useState<string>('gemini'); // Google Gemini 2.5
+  const [selectedModel] = useState<string>('gemini');
   const [desktopStream, setDesktopStream] = useState<MediaStream | null>(null);
 
-  // Theme customization (User can customize to any color, plus Apple & One UI presets)
+  // Theme customization (100% Dark & OLED Liquid Glass themes)
   const [mainColor, setMainColor] = useState<string>(() => {
-    return localStorage.getItem('sen_main_color') || '#0a0a0c';
+    const saved = localStorage.getItem('sen_main_color');
+    if (saved && saved.startsWith('#')) {
+      const cleanHex = saved.replace('#', '');
+      const r = parseInt(cleanHex.substring(0, 2), 16) || 0;
+      const g = parseInt(cleanHex.substring(2, 4), 16) || 0;
+      const b = parseInt(cleanHex.substring(4, 6), 16) || 0;
+      const isLight = (r * 299 + g * 587 + b * 114) / 1000 > 150;
+      if (isLight) {
+        localStorage.setItem('sen_main_color', '#0a0a0c');
+        return '#0a0a0c';
+      }
+      return saved;
+    }
+    return '#0a0a0c';
   });
   const [accentColor, setAccentColor] = useState<string>(() => {
     return localStorage.getItem('sen_accent_color') || '#06b6d4';
@@ -167,12 +180,18 @@ export default function App() {
       setIsLoading(true);
 
       try {
+        const customKey = localStorage.getItem('sen_custom_api_key');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (customKey) {
+          headers['x-gemini-api-key'] = customKey;
+        }
+
         const res = await fetch('/api/gemini/assist', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             prompt: text,
-            model: selectedModel,
+            model: 'gemini-3.8-flash',
             history: messages.slice(-6),
           }),
         });
@@ -186,7 +205,7 @@ export default function App() {
           id: `asst_${Date.now()}`,
           role: 'assistant',
           content: data.text || 'Command processed.',
-          modelUsed: data.modelUsed || 'Google Gemini 2.5',
+          modelUsed: data.modelUsed || 'Google Gemini 3.8 Flash',
           routingCategory: data.routingCategory,
           routingReason: data.routingReason,
           actions: data.actions || [],

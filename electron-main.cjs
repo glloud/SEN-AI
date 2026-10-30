@@ -11,10 +11,21 @@ let serverProcess = null;
 function startLocalServer() {
   try {
     const serverScript = path.join(__dirname, 'server.js');
-    // Run compiled server using node
-    serverProcess = spawn(process.execPath.includes('electron') ? process.execPath : 'node', [serverScript], {
+    
+    // In-process server execution: Runs inside Electron's built-in Node engine
+    // This allows the app to run on ANY Windows 11 PC without requiring Node.js to be installed!
+    try {
+      require(serverScript);
+      console.log('In-process backend server initialized on port 3000');
+      return;
+    } catch (requireErr) {
+      console.warn('In-process server load fallback to spawn:', requireErr.message);
+    }
+
+    // Fallback: spawn with ELECTRON_RUN_AS_NODE if needed
+    serverProcess = spawn(process.execPath, [serverScript], {
       cwd: __dirname,
-      env: { ...process.env, PORT: '3000', NODE_ENV: 'production' }
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', PORT: '3000', NODE_ENV: 'production' }
     });
 
     serverProcess.stdout?.on('data', (data) => {
@@ -97,11 +108,21 @@ function createSystemTray() {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Open SEN AI Notch & Tray',
+      label: 'Open SEN AI Notch (Ctrl+Shift+Space)',
       click: () => {
         if (mainWindow) {
           mainWindow.show();
           mainWindow.focus();
+        }
+      },
+    },
+    {
+      label: 'SEN Preferences & Customization',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+          mainWindow.webContents.send('open-sen-settings');
         }
       },
     },

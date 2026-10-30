@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
   receiveFromMain: (channel, func) => {
-    const validChannels = ['overlay-status'];
+    const validChannels = ['overlay-status', 'open-sen-settings'];
     if (validChannels.includes(channel)) {
       ipcRenderer.on(channel, (event, ...args) => func(...args));
     }
