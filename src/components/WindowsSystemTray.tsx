@@ -633,6 +633,21 @@ If Windows shows "Unspecified error" when launching SEN AI Desktop.lnk:
                       Active Font: <strong className={`font-mono ${isLight ? 'text-slate-900' : 'text-white'}`}>{activeFont}</strong>
                     </p>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.removeItem('sen_welcome_completed');
+                      window.dispatchEvent(new CustomEvent('open-welcome-setup'));
+                    }}
+                    className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      isLight
+                        ? 'bg-black/5 hover:bg-black/10 border-black/15 text-slate-900'
+                        : 'bg-white/10 hover:bg-white/20 border-white/20 text-white'
+                    }`}
+                  >
+                    Re-open Welcome Setup Wizard (Location, Theme, Font)
+                  </button>
                 </div>
               )}
 

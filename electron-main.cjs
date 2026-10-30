@@ -272,7 +272,11 @@ ipcMain.on('set-always-on-top', (_event, flag) => {
 ipcMain.on('set-ignore-mouse-events', (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (win && !win.isDestroyed()) {
-    win.setIgnoreMouseEvents(Boolean(ignore), options || { forward: true });
+    if (ignore) {
+      win.setIgnoreMouseEvents(true, options || { forward: true });
+    } else {
+      win.setIgnoreMouseEvents(false);
+    }
   }
 });
 

@@ -64,6 +64,13 @@ export default function App() {
     document.documentElement.style.setProperty('--app-font', `'${activeFont}', sans-serif`);
   }, [activeFont]);
 
+  // Listen for custom event to trigger Welcome Setup Modal anytime
+  useEffect(() => {
+    const handleTriggerWelcome = () => setShowWelcome(true);
+    window.addEventListener('open-welcome-setup', handleTriggerWelcome);
+    return () => window.removeEventListener('open-welcome-setup', handleTriggerWelcome);
+  }, []);
+
   // Custom linked apps & games
   const [customApps, setCustomApps] = useState<AppItem[]>(() => {
     const saved = localStorage.getItem('sen_custom_apps');
