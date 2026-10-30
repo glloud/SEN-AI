@@ -64,12 +64,7 @@ export default function App() {
     document.documentElement.style.setProperty('--app-font', `'${activeFont}', sans-serif`);
   }, [activeFont]);
 
-  // Listen for custom event to trigger Welcome Setup Modal anytime
-  useEffect(() => {
-    const handleTriggerWelcome = () => setShowWelcome(true);
-    window.addEventListener('open-welcome-setup', handleTriggerWelcome);
-    return () => window.removeEventListener('open-welcome-setup', handleTriggerWelcome);
-  }, []);
+
 
   // Custom linked apps & games
   const [customApps, setCustomApps] = useState<AppItem[]>(() => {
@@ -394,18 +389,24 @@ export default function App() {
         wakeDetected={wakeDetected}
         onClearChat={() => setMessages([])}
         mainColor={mainColor}
+        onChangeMainColor={setMainColor}
         accentColor={accentColor}
+        onChangeAccentColor={setAccentColor}
+        activeFont={activeFont}
+        onChangeFont={setActiveFont}
         pinnedCity={pinnedCity}
         onUpdateCity={setPinnedCity}
         isPlayingMusic={isPlayingMusic}
         onToggleMusic={() => setIsPlayingMusic(!isPlayingMusic)}
         musicSource={musicSource}
+        onChangeMusicSource={setMusicSource}
         onOpenSimulatedApp={handleOpenSimulatedApp}
         onTriggerPowerAction={handleTriggerPowerAction}
         customApps={customApps}
         onAddCustomApp={handleAddCustomApp}
         onOpenSettings={() => setIsSettingsOpen((prev) => !prev)}
         onExpandedChange={setIsNotchExpanded}
+        onReopenWelcome={() => setShowWelcome(true)}
       />
 
       {/* Windows 11 Taskbar System Tray & Hidden Icons Settings Flyout */}
@@ -486,7 +487,7 @@ export default function App() {
 
       {/* FIRST-TIME WELCOME SETUP WIZARD (Square 480x480 Glass Card) */}
       {showWelcome && (
-        <div data-interactive="true" className="pointer-events-auto">
+        <div data-interactive="true" className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 pointer-events-auto">
           <WelcomeSetupModal
             onComplete={(cfg) => {
               setPinnedCity(cfg.location);

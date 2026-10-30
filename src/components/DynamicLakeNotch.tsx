@@ -30,21 +30,27 @@ interface DynamicLakeNotchProps {
   wakeDetected: boolean;
   onClearChat: () => void;
   mainColor: string;
+  onChangeMainColor?: (color: string) => void;
   accentColor: string;
+  onChangeAccentColor?: (color: string) => void;
+  activeFont?: string;
+  onChangeFont?: (font: string) => void;
   pinnedCity: string;
   onUpdateCity: (city: string) => void;
   isPlayingMusic: boolean;
   onToggleMusic: () => void;
   musicSource: 'Spotify' | 'YouTube Music';
+  onChangeMusicSource?: (source: 'Spotify' | 'YouTube Music') => void;
   onOpenSimulatedApp: (appId: string) => void;
   onTriggerPowerAction: (act: 'lock' | 'sleep' | 'restart' | 'shutdown') => void;
   customApps: AppItem[];
   onAddCustomApp: (app: AppItem) => void;
   onOpenSettings?: () => void;
   onExpandedChange?: (expanded: boolean) => void;
+  onReopenWelcome?: () => void;
 }
 
-type CategoryTab = 'controls' | 'today' | 'stats' | 'clipboard' | 'apps' | 'power';
+type CategoryTab = 'controls' | 'today' | 'stats' | 'clipboard' | 'apps' | 'power' | 'settings';
 
 const CATEGORIES: { id: CategoryTab; label: string }[] = [
   { id: 'controls', label: 'Controls' },
@@ -53,6 +59,7 @@ const CATEGORIES: { id: CategoryTab; label: string }[] = [
   { id: 'clipboard', label: 'Clipboard' },
   { id: 'apps', label: 'Apps' },
   { id: 'power', label: 'Power' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 export function DynamicLakeNotch({
@@ -64,18 +71,24 @@ export function DynamicLakeNotch({
   wakeDetected,
   onClearChat,
   mainColor,
+  onChangeMainColor,
   accentColor,
+  onChangeAccentColor,
+  activeFont = 'Alata',
+  onChangeFont,
   pinnedCity,
   onUpdateCity,
   isPlayingMusic,
   onToggleMusic,
   musicSource,
+  onChangeMusicSource,
   onOpenSimulatedApp,
   onTriggerPowerAction,
   customApps,
   onAddCustomApp,
   onOpenSettings,
   onExpandedChange,
+  onReopenWelcome,
 }: DynamicLakeNotchProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -262,6 +275,8 @@ export function DynamicLakeNotch({
         className={`relative flex backdrop-blur-3xl overflow-hidden border-0 text-slate-100 bg-black ${
           isExpanded
             ? 'w-[640px] max-w-[96vw] rounded-b-[12px] p-5 flex-col gap-3.5'
+            : activePlaying
+            ? 'w-[230px] h-[32px] rounded-b-[12px] px-3 py-1 flex items-center justify-between cursor-pointer'
             : 'w-[180px] h-[32px] rounded-b-[12px] px-3 py-1 flex items-center justify-between cursor-pointer'
         }`}
         onClick={(e) => {
@@ -274,7 +289,7 @@ export function DynamicLakeNotch({
         <AnimatePresence mode="popLayout" initial={false}>
           {!isExpanded ? (
             /* ============================================================== */
-            /* 1. COMPACT IDLE NOTCH (Pitch Black, Chamfered, Minimal)        */
+            /* 1. COMPACT IDLE / MEDIA NOTCH (Pitch Black, Chamfered, Minimal) */
             /* ============================================================== */
             <motion.div
               key="compact-notch"
@@ -300,12 +315,24 @@ export function DynamicLakeNotch({
                 <div className="w-1.5 h-1.5 rounded-full bg-[#0c0c0c]" />
               </div>
 
-              {/* Clean, Flowy Audio Visualizer in Compact Notch */}
+              {/* Folded Notch Active Music Preview: Small Album Cover + Animated Visualizer */}
               {activePlaying ? (
-                <div className="flex items-center gap-0.5 pr-1" title="Playing Media">
-                  <span className="w-0.5 h-2.5 rounded-full animate-pulse bg-white/80" />
-                  <span className="w-0.5 h-3.5 rounded-full animate-pulse delay-75 bg-white" />
-                  <span className="w-0.5 h-2 rounded-full animate-pulse delay-150 bg-white/70" />
+                <div className="flex items-center gap-2 pr-1" title={`${mediaTitle} - ${mediaArtist}`}>
+                  {/* Small Album Cover Thumbnail */}
+                  <div className="w-5 h-5 rounded-md bg-white/10 border border-white/15 overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                    {mediaAlbumArt ? (
+                      <img src={mediaAlbumArt} alt="Album Cover" className="w-full h-full object-cover" />
+                    ) : (
+                      <Music className="w-3 h-3" style={{ color: accentColor }} />
+                    )}
+                  </div>
+
+                  {/* Small Flowy Visualizer */}
+                  <div className="flex items-center gap-0.5">
+                    <span className="w-0.5 h-2.5 rounded-full animate-pulse bg-white/80" />
+                    <span className="w-0.5 h-3.5 rounded-full animate-pulse delay-75 bg-white" />
+                    <span className="w-0.5 h-2 rounded-full animate-pulse delay-150 bg-white/70" />
+                  </div>
                 </div>
               ) : (
                 <div className="w-1.5 h-1.5 rounded-full bg-[#0e0e0e]" />
@@ -347,19 +374,19 @@ export function DynamicLakeNotch({
                     </button>
                   );
                 })}
-                {onOpenSettings && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenSettings();
-                    }}
-                    className="p-1.5 rounded-xl text-white/50 hover:text-white hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
-                    title="Settings"
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveCategory('settings');
+                  }}
+                  className={`p-1.5 rounded-xl transition-colors shrink-0 cursor-pointer ${
+                    activeCategory === 'settings' ? 'text-white bg-white/15' : 'text-white/50 hover:text-white hover:bg-white/10'
+                  }`}
+                  title="Settings"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               {/* Category Body */}
@@ -405,92 +432,151 @@ export function DynamicLakeNotch({
                         mainColor={mainColor}
                       />
                     )}
+                    {activeCategory === 'settings' && (
+                      <div className="p-3.5 rounded-2xl bg-[#0d0d12] border border-white/10 space-y-3 text-xs text-slate-200">
+                        <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                          <span className="font-bold text-white text-xs">SEN AI Notch Preferences</span>
+                          <span className="text-[10px] text-white/40">Inline Notch Settings</span>
+                        </div>
+
+                        {/* Accent Theme Color */}
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-semibold text-white/80 block">Glow Accent Color</label>
+                          <div className="flex items-center gap-2">
+                            {['#06b6d4', '#10b981', '#8b5cf6', '#f59e0b', '#f43f5e', '#38bdf8'].map((c) => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => onChangeAccentColor && onChangeAccentColor(c)}
+                                className={`w-6 h-6 rounded-full border transition-transform cursor-pointer ${
+                                  accentColor === c ? 'scale-110 border-white ring-2 ring-white/30' : 'border-white/20 hover:scale-105'
+                                }`}
+                                style={{ backgroundColor: c }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Soft Typography Selector */}
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-semibold text-white/80 block">Typography Style</label>
+                          <div className="grid grid-cols-2 gap-1.5 max-h-[100px] overflow-y-auto pr-1">
+                            {[
+                              { name: 'Alata', label: 'Alata (Default)' },
+                              { name: 'Comfortaa', label: 'Comfortaa (Soft)' },
+                              { name: 'Quicksand', label: 'Quicksand (Warm)' },
+                              { name: 'Outfit', label: 'Outfit (Modern)' },
+                              { name: 'Plus Jakarta Sans', label: 'Plus Jakarta' },
+                              { name: 'Nunito', label: 'Nunito (Humanist)' },
+                              { name: 'Syne', label: 'Syne (Bold)' },
+                              { name: 'Lexend', label: 'Lexend (Clean)' },
+                            ].map((f) => (
+                              <button
+                                key={f.name}
+                                type="button"
+                                onClick={() => onChangeFont && onChangeFont(f.name)}
+                                className={`p-1.5 rounded-lg border text-left text-[11px] transition-all cursor-pointer ${
+                                  activeFont === f.name
+                                    ? 'bg-white/20 border-white/40 text-white font-bold'
+                                    : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                                }`}
+                                style={{ fontFamily: f.name }}
+                              >
+                                {f.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </motion.div>
                 </AnimatePresence>
               </div>
 
               {/* ACTIVE MUSIC MEDIA HUD */}
-              <div className="p-3 rounded-2xl bg-[#0d0d12] border border-white/10 flex flex-col gap-2.5 overflow-hidden shrink-0">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    {/* Album Cover Art */}
-                    <div className="w-16 h-16 rounded-2xl bg-black border border-white/10 overflow-hidden flex items-center justify-center shrink-0 relative shadow-md">
-                      {mediaAlbumArt ? (
-                        <img src={mediaAlbumArt} alt="Album Cover" className="w-full h-full object-cover" />
-                      ) : (
-                        <div 
-                          className="w-full h-full flex items-center justify-center"
-                          style={{ backgroundColor: `${accentColor}25` }}
-                        >
-                          <Music className="w-7 h-7" style={{ color: accentColor }} />
+              {activePlaying && (
+                <div className="p-3 rounded-2xl bg-[#0d0d12] border border-white/10 flex flex-col gap-2.5 overflow-hidden shrink-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      {/* Album Cover Art */}
+                      <div className="w-16 h-16 rounded-2xl bg-black border border-white/10 overflow-hidden flex items-center justify-center shrink-0 relative shadow-md">
+                        {mediaAlbumArt ? (
+                          <img src={mediaAlbumArt} alt="Album Cover" className="w-full h-full object-cover" />
+                        ) : (
+                          <div 
+                            className="w-full h-full flex items-center justify-center"
+                            style={{ backgroundColor: `${accentColor}25` }}
+                          >
+                            <Music className="w-7 h-7" style={{ color: accentColor }} />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="font-semibold text-sm text-white truncate">
+                          {mediaTitle}
                         </div>
+                        <div className="text-xs text-white/50 truncate">
+                          {mediaArtist}
+                        </div>
+                        <div className="text-[10px] text-white/30 uppercase tracking-wider mt-0.5 font-medium">
+                          {musicSource}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Track Time Scrubber */}
+                  <div className="space-y-1">
+                    <div className="relative h-1 w-full rounded-full bg-white/10 overflow-hidden cursor-pointer">
+                      <div
+                        style={{
+                          width: `${Math.min(100, (trackProgress / 210) * 100)}%`,
+                          backgroundColor: accentColor,
+                        }}
+                        className="absolute top-0 bottom-0 left-0 rounded-full transition-all duration-300"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-white/40 font-mono">
+                      <span>{formatSecs(trackProgress)}</span>
+                      <span>3:30</span>
+                    </div>
+                  </div>
+
+                  {/* Active Playback Controls */}
+                  <div className="flex items-center justify-center gap-5 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setTrackProgress(0)}
+                      className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
+                      title="Previous"
+                    >
+                      <SkipBack className="w-4 h-4 fill-current" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onToggleMusic}
+                      style={{ backgroundColor: accentColor }}
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-black hover:scale-105 active:scale-95 transition-all shadow-md cursor-pointer"
+                      title={activePlaying ? "Pause" : "Play"}
+                    >
+                      {activePlaying ? (
+                        <Pause className="w-4 h-4 fill-current" />
+                      ) : (
+                        <Play className="w-4 h-4 fill-current ml-0.5" />
                       )}
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="font-semibold text-sm text-white truncate">
-                        {mediaTitle}
-                      </div>
-                      <div className="text-xs text-white/50 truncate">
-                        {mediaArtist}
-                      </div>
-                      <div className="text-[10px] text-white/30 uppercase tracking-wider mt-0.5 font-medium">
-                        {musicSource}
-                      </div>
-                    </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrackProgress((p) => Math.min(210, p + 30))}
+                      className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
+                      title="Next"
+                    >
+                      <SkipForward className="w-4 h-4 fill-current" />
+                    </button>
                   </div>
                 </div>
-
-                {/* Track Time Scrubber */}
-                <div className="space-y-1">
-                  <div className="relative h-1 w-full rounded-full bg-white/10 overflow-hidden cursor-pointer">
-                    <div
-                      style={{
-                        width: `${Math.min(100, (trackProgress / 210) * 100)}%`,
-                        backgroundColor: accentColor,
-                      }}
-                      className="absolute top-0 bottom-0 left-0 rounded-full transition-all duration-300"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-[10px] text-white/40 font-mono">
-                    <span>{formatSecs(trackProgress)}</span>
-                    <span>3:30</span>
-                  </div>
-                </div>
-
-                {/* Active Playback Controls */}
-                <div className="flex items-center justify-center gap-5 pt-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setTrackProgress(0)}
-                    className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
-                    title="Previous"
-                  >
-                    <SkipBack className="w-4 h-4 fill-current" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onToggleMusic}
-                    style={{ backgroundColor: accentColor }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-black hover:scale-105 active:scale-95 transition-all shadow-md cursor-pointer"
-                    title={activePlaying ? "Pause" : "Play"}
-                  >
-                    {activePlaying ? (
-                      <Pause className="w-4 h-4 fill-current" />
-                    ) : (
-                      <Play className="w-4 h-4 fill-current ml-0.5" />
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTrackProgress((p) => Math.min(210, p + 30))}
-                    className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
-                    title="Next"
-                  >
-                    <SkipForward className="w-4 h-4 fill-current" />
-                  </button>
-                </div>
-              </div>
+              )}
 
               {/* Chat Messages */}
               {messages.length > 0 && (

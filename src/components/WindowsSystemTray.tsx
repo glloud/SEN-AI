@@ -184,33 +184,48 @@ export function WindowsSystemTray({
     setLocalCity(pinnedCity);
   }, [pinnedCity]);
 
-  // Click outside flyout to close
+  const lastTouchTime = useRef<number>(0);
+
+  // Robust click outside listener
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      const target = e.target as Node | null;
+      const target = e.target as HTMLElement | null;
       if (!target) return;
+
+      // Ignore synthetic mousedown dispatched by browser after touchstart
+      if (e.type === 'mousedown' && Date.now() - lastTouchTime.current < 600) {
+        return;
+      }
+      if (e.type === 'touchstart') {
+        lastTouchTime.current = Date.now();
+      }
 
       // Ignore if element was unmounted from DOM during React state update
       if (!document.body.contains(target)) return;
 
-      // Ignore if click/touch is inside flyout container
-      if (flyoutRef.current && flyoutRef.current.contains(target)) return;
+      // Ignore if click/touch is inside the flyout or tray trigger
+      if (
+        target.closest('#sen-settings-flyout') ||
+        target.closest('#sen-tray-trigger') ||
+        (flyoutRef.current && flyoutRef.current.contains(target))
+      ) {
+        return;
+      }
 
       setIsOpen(false);
     };
 
-    // Delay binding listener slightly so opening click does not trigger close
     const timer = setTimeout(() => {
-      window.addEventListener('mousedown', handleClickOutside);
-      window.addEventListener('touchstart', handleClickOutside);
-    }, 60);
+      window.addEventListener('mousedown', handleClickOutside, { capture: true });
+      window.addEventListener('touchstart', handleClickOutside, { capture: true, passive: true });
+    }, 100);
 
     return () => {
       clearTimeout(timer);
-      window.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('touchstart', handleClickOutside);
+      window.removeEventListener('mousedown', handleClickOutside, { capture: true } as any);
+      window.removeEventListener('touchstart', handleClickOutside, { capture: true } as any);
     };
   }, [isOpen]);
 
@@ -363,6 +378,7 @@ If Windows shows "Unspecified error" when launching SEN AI Desktop.lnk:
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            id="sen-settings-flyout"
             data-interactive="true"
             onMouseEnter={() => {
               (window as any).electronAPI?.setIgnoreMouseEvents(false);
@@ -1077,6 +1093,7 @@ If Windows shows "Unspecified error" when launching SEN AI Desktop.lnk:
 
       {/* 2. WINDOWS 11 TASKBAR NOTIFICATION TRAY STRIP */}
       <div
+        id="sen-tray-trigger"
         data-interactive="true"
         onMouseEnter={() => {
           (window as any).electronAPI?.setIgnoreMouseEvents(false);
