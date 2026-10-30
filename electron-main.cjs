@@ -10,19 +10,18 @@ let serverProcess = null;
 // Automatically start the Express backend server in the background
 function startLocalServer() {
   try {
-    const serverScript = path.join(__dirname, 'server.ts');
-    // Run server using tsx or node
-    serverProcess = spawn('npx', ['tsx', serverScript], {
+    const serverScript = path.join(__dirname, 'server.js');
+    // Run compiled server using node
+    serverProcess = spawn(process.execPath.includes('electron') ? process.execPath : 'node', [serverScript], {
       cwd: __dirname,
-      shell: true,
       env: { ...process.env, PORT: '3000', NODE_ENV: 'production' }
     });
 
-    serverProcess.stdout.on('data', (data) => {
+    serverProcess.stdout?.on('data', (data) => {
       console.log(`Server: ${data}`);
     });
 
-    serverProcess.stderr.on('data', (data) => {
+    serverProcess.stderr?.on('data', (data) => {
       console.error(`Server Error: ${data}`);
     });
   } catch (err) {

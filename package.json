@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "description": "SEN AI Dynamic Lake Notch & Windows System Tray Overlay Assistant",
   "author": "SEN AI Team",
-  "main": "index.js",
+  "main": "index.cjs",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js dist-electron",
     "lint": "tsc --noEmit",
-    "electron:build": "npm run build && electron-builder --win --x64"
+    "electron:build": "npm run build && npx tsc server.ts --target es2022 --module commonjs --outDir . && electron-builder --win --x64"
   },
   "dependencies": {
     "@google/genai": "^2.32.0",
@@ -50,10 +50,10 @@
     },
     "files": [
       "dist/**/*",
-      "index.js",
+      "index.cjs",
       "electron-main.cjs",
       "electron-preload.cjs",
-      "server.ts"
+      "server.js"
     ],
     "win": {
       "target": [
